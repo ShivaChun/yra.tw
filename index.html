@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <!-- SECURITY: Tell bots not to index this page -->
     <meta name="robots" content="noindex, nofollow, noarchive">
     <title>Y/R/A  | 逸離建築/韻室設計</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -31,8 +30,6 @@
         .portal-fade-out { opacity: 0; pointer-events: none; transition: opacity 0.8s ease-in-out; }
         .animate-on-scroll { opacity: 0; transform: translateY(30px); transition: opacity 1.0s ease-out, transform 1.0s ease-out; }
         .animate-on-scroll.is-visible { opacity: 1; transform: translateY(0); }
-        
-        /* Logo & SVG Styles */
         .logo-stroke { fill: none; stroke: currentColor; stroke-dasharray: 4000; stroke-dashoffset: 4000; animation: drawStroke 4s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate; }
         .logo-fill { fill: currentColor; opacity: 0.1; animation: fadeInFill 4s infinite alternate; }
         @keyframes drawStroke { 0% { stroke-dashoffset: 4000; opacity: 0.3; } 100% { stroke-dashoffset: 0; opacity: 1; } }
@@ -43,18 +40,16 @@
         .portal-slash-svg line { stroke: #A0A0A0; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 20; stroke-dashoffset: 20; animation: slashFlow 3s infinite ease-in-out; transition: stroke 0.3s ease; }
         .portal-interactive-group:hover .portal-slash-svg line { stroke: #B85742; }
         
-        /* Menu Hover */
         .menu-link-group { display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; }
         .menu-link-group .slash-line { stroke: #A0A0A0; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 0; stroke-dashoffset: 0; transition: stroke 0.3s ease; }
         .menu-link-group:hover .slash-line { stroke: #B85742; stroke-dasharray: 20; animation: slashFlow 1.5s infinite ease-in-out; }
         @keyframes slashFlow { 0% { stroke-dashoffset: 20; opacity: 0; } 20% { opacity: 1; } 40% { stroke-dashoffset: 0; } 60% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -20; opacity: 0; } }
 
-        /* Hero & Neon */
         .hero-float { animation: floating 4s ease-in-out infinite; }
         @keyframes floating { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
         .neon-text { animation: neonFlicker 8s infinite steps(1); }
         @keyframes neonFlicker { 0%, 30%, 32%, 34%, 36%, 100% { opacity: 1; text-shadow: 0 0 0 transparent; } 31%, 33%, 35% { opacity: 0.3; } 31.5%, 33.5% { opacity: 0.1; } }
-        
+
         .structure-svg-path { fill: none; stroke-width: 50; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5000; stroke-dashoffset: 5000; animation: drawStructure 2s ease-out forwards; }
         .structure-svg-fill { fill: #F5F5F5; opacity: 0; animation: fillStructure 1s ease-out 1.5s forwards; }
         @keyframes drawStructure { to { stroke-dashoffset: 0; } }
@@ -85,19 +80,13 @@
         .dashboard-tab.active { border-bottom: 2px solid #B85742; color: #B85742; }
         .project-card:hover .project-img { transform: scale(1.05); }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
-        
-        /* FIX: Structure Detail Layout */
         .detail-content { position: relative; width: 100%; min-height: 100%; }
-        
-        /* Toast Notification */
         #toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; pointer-events: none; }
         .toast { background: rgba(30, 30, 30, 0.9); color: white; padding: 12px 24px; border-radius: 4px; margin-top: 10px; opacity: 0; transition: opacity 0.3s ease, transform 0.3s ease; transform: translateY(10px); font-size: 14px; letter-spacing: 1px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; }
         .toast.show { opacity: 1; transform: translateY(0); }
-        
         :root { --section-padding-x: 4vw; }
     </style>
 </head>
-<!-- Disable Context Menu -->
 <body oncontextmenu="return false" class="bg-yr-white text-yr-black selection:bg-yr-red selection:text-white flex flex-col min-h-screen">
 
     <div id="toast-container"></div>
@@ -207,7 +196,7 @@
                 <div><label class="block text-xs text-gray-400 tracking-widest mb-2">PHONE</label><input type="tel" id="contact-phone" class="w-full border-b border-gray-300 py-2 outline-none focus:border-yr-red transition-colors"></div>
                 <div><label class="block text-xs text-gray-400 tracking-widest mb-2">EMAIL</label><input type="email" id="contact-email" class="w-full border-b border-gray-300 py-2 outline-none focus:border-yr-red transition-colors"></div>
                 <div><label class="block text-xs text-gray-400 tracking-widest mb-2">MESSAGE</label><textarea id="contact-message" class="w-full border-b border-gray-300 py-2 outline-none focus:border-yr-red h-24 resize-none transition-colors"></textarea></div>
-                <button onclick="window.processContactForm()" class="w-full bg-yr-black text-white py-3 tracking-[0.2em] hover:bg-yr-red transition-colors text-sm">SEND MESSAGE</button>
+                <button onclick="window.processContactForm()" class="w-full bg-yr-black text-white py-3 tracking-[0.2em] hover:bg-yr-red transition-colors text-sm relative z-10 cursor-pointer">SEND MESSAGE</button>
             </div>
         </div>
     </div>
@@ -259,7 +248,7 @@
                 </div>
             </section>
             <section id="contact-cn" class="py-[15vh] px-[4vw] text-center bg-yr-white border-t border-gray-200 scroll-mt-20">
-                <div class="w-full animate-on-scroll"><h2 class="text-fluid-2xl font-light tracking-widest text-yr-black mb-[3vh]">從構想到形體</h2><h3 class="text-fluid-lg font-light tracking-widest text-gray-500 mb-[3vh]">肇於意，成於形</h3><p class="text-gray-500 font-light tracking-widest leading-loose mb-[3vh] text-fluid-sm">我們相信空間的核心，不在於區隔，而在於連結。<br>在理性與詩性之間，尋找思想的留白。</p><button onclick="openContactModal()" class="inline-block bg-yr-red text-white px-[3vw] py-[2vh] text-fluid-xs font-bold tracking-[0.2em] hover:bg-yr-black transition-colors duration-300 mt-8">開始對話</button></div>
+                <div class="w-full animate-on-scroll"><h2 class="text-fluid-2xl font-light tracking-widest text-yr-black mb-[3vh]">從構想到形體</h2><h3 class="text-fluid-lg font-light tracking-widest text-gray-500 mb-[3vh]">肇於意，成於形</h3><p class="text-gray-500 font-light tracking-widest leading-loose mb-[3vh] text-fluid-sm">我們相信空間的核心，不在於區隔，而在於連結。<br>在理性與詩性之間，尋找思想的留白。</p><button onclick="openContactModal()" class="inline-block bg-yr-red text-white px-[3vw] py-[2vh] text-fluid-xs font-bold tracking-[0.2em] hover:bg-yr-black transition-colors duration-300 mt-8 relative z-20">開始對話</button></div>
             </section>
         </div>
         
@@ -282,7 +271,7 @@
             </section>
              <section id="structure-en" class="py-[10vh] px-[4vw] bg-yr-white scroll-mt-20"><div class="w-full animate-on-scroll text-center mb-[5vh]"><h2 class="text-fluid-xl font-light tracking-widest text-yr-black">Structure</h2></div><div class="flex flex-col md:flex-row justify-center items-stretch w-full gap-4 md:gap-0 min-h-[500px]"><div id="wing-arch-en" onclick="selectStructure('arch', 'en')" class="flex-1 bg-white p-[2vw] py-[4vh] text-center border border-gray-100 hover:border-yr-black transition-all duration-500 group cursor-pointer hover:shadow-lg relative overflow-hidden flex flex-col justify-center"><div class="default-content transition-opacity duration-500"><h3 class="text-fluid-lg tracking-widest mb-2 group-hover:text-yr-red transition-colors whitespace-nowrap">YE/RI ARCHITECTS</h3><p class="text-fluid-sm text-gray-400 tracking-widest mb-[3vh]">YE/RI ARCHITECTS</p><div class="w-8 h-[1px] bg-yr-black mx-auto mb-[3vh]"></div><p class="text-fluid-sm text-gray-600 font-light tracking-wide">Architecture / Landscape</p><p class="mt-[3vh] text-fluid-sm text-yr-black font-bold tracking-[0.2em] uppercase">Beyond Form</p></div><div class="detail-content hidden opacity-0 transition-opacity duration-500 inset-0 bg-white p-8 flex-col justify-center items-center text-left overflow-y-auto"></div><div id="local-trans-room-en" class="local-transition hidden"><svg viewBox="46070 26370 2030 2000" xmlns="http://www.w3.org/2000/svg" class="w-[30%] h-[30%] text-yr-black"><g><polyline class="trans-svg-path" stroke="currentColor" fill="none" points="46073.72,26373.49 47111.93,27272.6 47111.93,28369.67 "/><polyline class="trans-svg-path" stroke="currentColor" fill="none" points="47111.95,26373.02 48090.9,26373.02 47436.49,27272.73 47785.92,27575.23 "/></g></svg></div></div><div class="hidden md:flex flex-col justify-center items-center px-[2vw]"><div class="w-[1px] h-full bg-gray-300"></div></div><div id="wing-room-en" onclick="selectStructure('room', 'en')" class="flex-1 bg-white p-[2vw] py-[4vh] text-center border border-gray-100 hover:border-yr-black transition-all duration-500 group cursor-pointer hover:shadow-lg relative overflow-hidden flex flex-col justify-center"><div class="default-content transition-opacity duration-500"><h3 class="text-fluid-lg tracking-widest mb-2 group-hover:text-yr-red transition-colors whitespace-nowrap">Y/ROOM DESIGN</h3><p class="text-fluid-sm text-gray-400 tracking-widest mb-[3vh]">Y/ROOM</p><div class="w-8 h-[1px] bg-yr-black mx-auto mb-[3vh]"></div><p class="text-fluid-sm text-gray-600 font-light tracking-wide">Interior / Living</p><p class="mt-[3vh] text-fluid-sm text-yr-black font-bold tracking-[0.2em] uppercase">Rhythm in Life</p></div><div class="detail-content hidden opacity-0 transition-opacity duration-500 inset-0 bg-white p-8 flex-col justify-center items-center text-left overflow-y-auto"></div><div id="local-trans-arch-en" class="local-transition hidden"><svg viewBox="81800 47660 2020 1860" xmlns="http://www.w3.org/2000/svg" class="w-[30%] h-[30%] text-yr-black"><g><polygon class="trans-svg-path" stroke="currentColor" fill="none" points="83165.26,49195.46 83819.67,48295.75 83819.67,47666.28 83165.26,48565.99 "/><polygon class="trans-svg-path" stroke="currentColor" fill="none" points="83819.67,47666.28 82840.72,47666.28 82840.72,48295.75 83360.03,48295.75 "/><polygon class="trans-svg-path" stroke="currentColor" fill="none" points="82896.49,48614.18 81802.49,47666.75 81802.49,48565.31 82896.49,49512.74 "/><polygon class="trans-svg-path" stroke="currentColor" fill="none" points="83165.26,48565.99 83165.26,49195.46 83514.69,49497.96 83514.69,48868.49 "/></g></svg></div></div></div></section>
              <section id="projects-en" class="py-[10vh] bg-white scroll-mt-20"><div class="w-full px-[4vw]"><div class="flex justify-between items-end mb-[5vh] animate-on-scroll"><div><h2 class="text-fluid-xl font-light tracking-widest text-yr-black">Selected Projects</h2></div><button onclick="openAllProjects()" class="text-fluid-xs font-bold text-yr-red tracking-widest border-b border-yr-red pb-1 whitespace-nowrap hover:text-yr-black hover:border-yr-black transition-colors">VIEW ALL</button></div><div id="featured-projects-en" class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-[4vw]"></div></div></section>
-             <section id="contact-en" class="py-[15vh] px-[4vw] text-center bg-yr-white border-t border-gray-200 scroll-mt-20"><div class="w-full animate-on-scroll"><h2 class="text-fluid-2xl font-light tracking-widest text-yr-black mb-[3vh]">From Vision to Form</h2><button onclick="openContactModal()" class="inline-block bg-yr-red text-white px-[3vw] py-[2vh] text-fluid-xs font-bold tracking-[0.2em] hover:bg-yr-black transition-colors duration-300 mt-8">CONTACT US</button></div></section>
+             <section id="contact-en" class="py-[15vh] px-[4vw] text-center bg-yr-white border-t border-gray-200 scroll-mt-20"><div class="w-full animate-on-scroll"><h2 class="text-fluid-2xl font-light tracking-widest text-yr-black mb-[3vh]">From Vision to Form</h2><button onclick="openContactModal()" class="inline-block bg-yr-red text-white px-[3vw] py-[2vh] text-fluid-xs font-bold tracking-[0.2em] hover:bg-yr-black transition-colors duration-300 mt-8 relative z-20">CONTACT US</button></div></section>
         </div>
     </main>
 
