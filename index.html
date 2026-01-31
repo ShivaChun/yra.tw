@@ -26,6 +26,7 @@
             font-family: 'Noto Serif TC', serif;
             background-color: #f4f4f0;
             color: #4a4a4a;
+            overflow-x: hidden; /* Prevent horizontal scroll on body */
         }
 
         /* --- Animations --- */
@@ -37,36 +38,33 @@
             100% { transform: translateY(0) rotate(720deg); }
         }
 
-        @keyframes shake {
-            0% { transform: rotate(0deg); }
-            25% { transform: rotate(5deg); }
-            50% { transform: rotate(0eg); }
-            75% { transform: rotate(-5deg); }
-            100% { transform: rotate(0deg); }
-        }
-
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        @keyframes float {
+        @keyframes cardReveal {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        @keyframes float-card {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+
+        @keyframes float-particle {
             0% { transform: translateY(0px) translateX(0px); opacity: 0; }
             50% { opacity: 0.8; }
             100% { transform: translateY(-100px) translateX(20px); opacity: 0; }
         }
 
-        /* Flip Animation */
-        .perspective-1000 { perspective: 1000px; }
-        .transform-style-3d { transform-style: preserve-3d; }
-        .backface-hidden { backface-visibility: hidden; }
-        .rotate-y-180 { transform: rotateY(180deg); }
-
         .animate-toss { animation: toss 0.8s ease-in-out; }
-        .animate-shake { animation: shake 0.3s infinite; }
         .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
-
-        /* --- Moon Block Styles (Wabi-Sabi) --- */
+        .animate-card-reveal { animation: cardReveal 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .animate-float { animation: float-card 6s ease-in-out infinite; }
+        
+        /* Moon Block Styles */
         .moon-block {
             width: 80px;
             height: 40px;
@@ -87,7 +85,7 @@
             transform: rotateX(180deg); 
         }
 
-        /* --- Particle Styles (Cosmic) --- */
+        /* Particle Styles */
         .particle {
             position: absolute;
             background: white;
@@ -110,9 +108,39 @@
             color: #707070;
         }
 
-        /* Card Text Font */
         .font-latin {
             font-family: 'Cinzel', serif;
+        }
+        
+        /* Card Selection Number Badge */
+        .selection-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 36px;
+            height: 36px;
+            background-color: #a05248;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Cinzel', serif;
+            font-weight: bold;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s ease-out;
+            z-index: 20;
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+
+        /* Hide Scrollbar but keep functionality */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
         }
     </style>
 </head>
@@ -131,7 +159,7 @@
 
         // --- Components ---
 
-        // 1. Moon Blocks (Wabi-Sabi Style)
+        // 1. Moon Blocks
         const MoonBlocks = () => {
             const [status, setStatus] = useState("ready"); 
             const [blocks, setBlocks] = useState([0, 0]); 
@@ -201,166 +229,239 @@
             );
         };
 
-        // 2. Triad Cards (三元牌)
+        // 2. Triad Cards (三元牌) - Mysterious Floating Space
         const TriadCards = () => {
-            const [stage, setStage] = useState('selection'); // selection, sub-selection, result
-            const [selectedMain, setSelectedMain] = useState(null);
-            const [subResult, setSubResult] = useState(null);
-            const [shuffling, setShuffling] = useState(false);
+            const [stage, setStage] = useState('main-select'); 
+            const [mainOrder, setMainOrder] = useState([]); 
+            const [subOrder, setSubOrder] = useState([]);
+            const [particles, setParticles] = useState([]);
 
-            const mainCards = [
+            const mainCardsData = [
                 { 
                     id: 'origin', 
                     title: 'Origo Animae', 
-                    zhTitle: '靈魂的起源', 
+                    deTitle: 'Ursprung der Seele',
+                    phrase: 'Aus der Wurzel steigt das Licht',
                     img: 'https://img.yra.tw/x/Origo%20Animae-2.png' 
                 },
                 { 
                     id: 'bond', 
                     title: 'Transmutatio Vinculi', 
-                    zhTitle: '連結的轉變', 
+                    deTitle: 'Wandel der Verbindung',
+                    phrase: 'Im Band fließt das Leben',
                     img: 'https://img.yra.tw/x/Transmutatio%20Vinculi-2.png' 
                 },
                 { 
                     id: 'future', 
                     title: 'Realis Futura', 
-                    zhTitle: '未來的實現', 
-                    img: 'https://img.yra.tw/x/Reakis%20Futura-2.png' // Keeping original URL
+                    deTitle: 'Verwirklichung der Zukunft',
+                    phrase: 'Feuer führt zu den Sternen',
+                    img: 'https://img.yra.tw/x/Reakis%20Futura-2.png'
                 }
             ];
 
-            const subCards = [
+            const subCardsData = [
                 { id: 'arbor', title: 'Arbor', img: 'https://img.yra.tw/x/Arbor-1.png' },
                 { id: 'astra', title: 'ASTRA', img: 'https://img.yra.tw/x/ASTRA-2.png' },
                 { id: 'semen', title: 'Semen', img: 'https://img.yra.tw/x/Semen02.png' }
             ];
 
-            const handleMainSelect = (card) => {
-                setSelectedMain(card);
-                setStage('sub-selection');
+            // Initialize cosmic particles for background
+            useEffect(() => {
+                const newParticles = [];
+                for(let i=0; i<40; i++){
+                    newParticles.push({
+                        id: i,
+                        top: Math.random() * 100 + '%',
+                        left: Math.random() * 100 + '%',
+                        size: Math.random() * 2 + 'px',
+                        duration: Math.random() * 5 + 5 + 's',
+                        delay: Math.random() * 5 + 's'
+                    });
+                }
+                setParticles(newParticles);
+            }, []);
+
+            const handleMainClick = (id) => {
+                if (stage !== 'main-select') return;
+                if (mainOrder.includes(id)) {
+                    setMainOrder(mainOrder.filter(item => item !== id));
+                } else {
+                    if (mainOrder.length < 3) {
+                        setMainOrder([...mainOrder, id]);
+                    }
+                }
             };
 
-            const handleSubDraw = () => {
-                if (shuffling) return;
-                setShuffling(true);
-                // Simulate shuffle/draw delay
-                setTimeout(() => {
-                    const randomSub = subCards[Math.floor(Math.random() * subCards.length)];
-                    setSubResult(randomSub);
-                    setShuffling(false);
-                    setStage('result');
-                }, 1000);
+            const handleSubClick = (id) => {
+                if (stage !== 'sub-select') return;
+                if (subOrder.includes(id)) {
+                    setSubOrder(subOrder.filter(item => item !== id));
+                } else {
+                    if (subOrder.length < 3) {
+                        setSubOrder([...subOrder, id]);
+                    }
+                }
             };
 
-            const reset = () => {
-                setStage('selection');
-                setSelectedMain(null);
-                setSubResult(null);
+            const getSelectionIndex = (id, list) => {
+                const index = list.indexOf(id);
+                return index !== -1 ? index + 1 : null;
+            };
+
+            const getCard = (id, list) => list.find(c => c.id === id);
+
+            // Carousel Card Component
+            const CardItem = ({ card, orderList, onClick, isSelectable }) => {
+                const selectIdx = getSelectionIndex(card.id, orderList);
+                // Float animation delay based on id char code to desync
+                const floatDelay = `${card.id.charCodeAt(0) % 5}s`;
+
+                return (
+                    <div className="snap-center shrink-0 w-[75vw] sm:w-[320px] md:w-[280px] flex flex-col items-center justify-center p-4">
+                        <div 
+                            onClick={() => isSelectable && onClick(card.id)}
+                            className={`
+                                relative w-full aspect-[2/3] rounded-xl overflow-hidden shadow-2xl 
+                                transition-all duration-500 ease-out cursor-pointer
+                                ${isSelectable ? 'animate-float' : ''}
+                                ${selectIdx ? 'ring-2 ring-[#a05248] scale-95 opacity-60' : 'hover:scale-105 hover:z-10'}
+                            `}
+                            style={{ animationDelay: floatDelay }}
+                        >
+                            <img src={card.img} alt="card" className="w-full h-full object-cover pointer-events-none select-none" />
+                            
+                            {/* Overlay Gradient for depth */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60"></div>
+
+                            {selectIdx && (
+                                <div className="selection-badge">{selectIdx}</div>
+                            )}
+                        </div>
+                    </div>
+                );
             };
 
             return (
-                <div className="flex flex-col items-center min-h-[500px] w-full animate-fade-in">
+                <div className="relative flex flex-col items-center min-h-[600px] w-full animate-fade-in overflow-hidden rounded-xl">
                     
-                    {/* Header Instruction */}
-                    <div className="text-center mb-8 px-4">
-                        <p className="text-[#a0a0a0] text-xs font-latin tracking-[0.2em] mb-2 uppercase">Triad Oracle</p>
-                        <h2 className="text-xl font-medium text-[#444] tracking-widest">
-                            {stage === 'selection' && "依照你目前生活的感受，選出最優先的順序"}
-                            {stage === 'sub-selection' && "針對此面向，請抽取一張副牌"}
-                            {stage === 'result' && "三元牌指引"}
-                        </h2>
+                    {/* Cosmic Background */}
+                    <div className="absolute inset-0 bg-[#0a0a0c] z-0">
+                         <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a2e] to-[#0a0a0c] opacity-80"></div>
+                         {particles.map(p => (
+                            <div key={p.id} className="particle opacity-30" style={{
+                                top: p.top, 
+                                left: p.left, 
+                                width: p.size, 
+                                height: p.size,
+                                animation: `float-particle ${p.duration} ease-in-out infinite`,
+                                animationDelay: p.delay
+                            }}></div>
+                        ))}
                     </div>
 
-                    {/* Stage 1: Main Card Selection */}
-                    {stage === 'selection' && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl px-4">
-                            {mainCards.map((card) => (
-                                <div 
-                                    key={card.id}
-                                    onClick={() => handleMainSelect(card)}
-                                    className="group cursor-pointer flex flex-col items-center transition-all duration-300 transform hover:-translate-y-2"
-                                >
-                                    <div className="w-full aspect-[2/3] rounded-lg overflow-hidden shadow-md group-hover:shadow-xl transition-all relative bg-[#e8e4dc]">
-                                        <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity z-10"></div>
-                                        <img src={card.img} alt={card.title} className="w-full h-full object-cover" />
-                                    </div>
-                                    <h3 className="mt-4 font-latin text-sm font-bold text-[#555] tracking-widest">{card.title}</h3>
-                                    <p className="text-xs text-[#888] mt-1 tracking-wider">{card.zhTitle}</p>
-                                </div>
-                            ))}
+                    {/* Content Layer */}
+                    <div className="relative z-10 w-full flex flex-col h-full py-8">
+                        
+                        {/* Header */}
+                        <div className="text-center mb-4 px-4">
+                            <p className="text-[#888] text-[10px] md:text-xs font-latin tracking-[0.3em] mb-2 uppercase opacity-70">
+                                {stage.includes('main') ? 'Phase I : Origin' : 'Phase II : Subconscious'}
+                            </p>
+                            <h2 className="text-lg md:text-xl font-light text-[#e0e0e0] tracking-widest min-h-[3rem] drop-shadow-lg">
+                                {stage === 'main-select' && "左右滑動瀏覽，點擊卡牌決定順序"}
+                                {stage === 'main-reveal' && "三元顯現：連結、起源與未來"}
+                                {stage === 'sub-select' && "凝視虛空，再次排序你的直覺"}
+                                {stage === 'final-reveal' && "命運之流：完整的指引"}
+                            </h2>
                         </div>
-                    )}
 
-                    {/* Stage 2: Sub Card Selection */}
-                    {stage === 'sub-selection' && selectedMain && (
-                        <div className="flex flex-col items-center w-full animate-fade-in">
-                            {/* Selected Context */}
-                            <div className="flex items-center gap-4 mb-10 opacity-70 scale-90">
-                                <img src={selectedMain.img} alt={selectedMain.title} className="w-16 h-24 object-cover rounded shadow" />
-                                <div className="text-left">
-                                    <p className="text-xs text-[#888]">已選擇主牌</p>
-                                    <p className="font-latin font-bold text-[#555]">{selectedMain.title}</p>
+                        {/* STAGE: SELECTION (Carousel) */}
+                        {(stage === 'main-select' || stage === 'sub-select') && (
+                            <div className="flex-1 flex flex-col items-center justify-center w-full">
+                                {/* Horizontal Scroll Container */}
+                                <div className="w-full flex overflow-x-auto snap-x snap-mandatory gap-4 px-[12.5vw] sm:px-[calc(50%-160px)] md:px-[calc(50%-140px)] py-10 no-scrollbar items-center">
+                                    {(stage === 'main-select' ? mainCardsData : subCardsData).map((card) => (
+                                        <CardItem 
+                                            key={card.id} 
+                                            card={card} 
+                                            orderList={stage === 'main-select' ? mainOrder : subOrder}
+                                            onClick={stage === 'main-select' ? handleMainClick : handleSubClick}
+                                            isSelectable={true}
+                                        />
+                                    ))}
+                                    {/* Spacer for end of scroll */}
+                                    <div className="w-[1px] shrink-0"></div> 
+                                </div>
+
+                                {/* Instruction Hint */}
+                                <div className="mt-2 text-[#666] text-xs tracking-widest animate-pulse">
+                                    ← SWIPE TO BROWSE →
+                                </div>
+
+                                {/* Action Button */}
+                                <div className="mt-8 h-12">
+                                    {(stage === 'main-select' ? mainOrder : subOrder).length === 3 && (
+                                        <button 
+                                            onClick={stage === 'main-select' ? () => setStage('main-reveal') : () => setStage('final-reveal')}
+                                            className="px-10 py-3 bg-[#a05248] text-white rounded-full text-sm tracking-[0.2em] shadow-[0_0_20px_rgba(160,82,72,0.4)] hover:bg-[#b06258] transition-all transform hover:scale-105"
+                                        >
+                                            {stage === 'main-select' ? '確認顯現' : '揭示全貌'}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
+                        )}
 
-                            {/* Face Down Cards */}
-                            <div className="flex gap-4 justify-center">
-                                {[1, 2, 3].map((i) => (
-                                    <div 
-                                        key={i}
-                                        onClick={handleSubDraw}
-                                        className={`w-28 h-44 bg-[#2a2a2a] rounded-lg border-2 border-[#555] cursor-pointer shadow-lg transition-all duration-500 transform hover:-translate-y-2 relative overflow-hidden group ${shuffling ? 'animate-pulse' : ''}`}
-                                    >
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="w-16 h-16 border border-[#444] rounded-full flex items-center justify-center">
-                                                <div className="w-12 h-12 border border-[#444] rounded-full rotate-45"></div>
+                        {/* STAGE: REVEAL (Grid Layout) */}
+                        {(stage === 'main-reveal' || stage === 'final-reveal') && (
+                            <div className="flex-1 flex flex-col items-center w-full px-4">
+                                
+                                {/* If Final, maybe show Main small at top? */}
+                                {stage === 'final-reveal' && (
+                                     <div className="flex justify-center gap-2 mb-8 opacity-50">
+                                         {mainOrder.map(id => (
+                                             <div key={id} className="w-8 h-12 rounded bg-gray-700 overflow-hidden">
+                                                 <img src={getCard(id, mainCardsData).img} className="w-full h-full object-cover" />
+                                             </div>
+                                         ))}
+                                     </div>
+                                )}
+
+                                <div className="grid grid-cols-3 gap-3 md:gap-8 w-full max-w-4xl mt-4">
+                                    {(stage === 'main-reveal' ? mainOrder : subOrder).map((id, index) => {
+                                        const list = stage === 'main-reveal' ? mainCardsData : subCardsData;
+                                        const card = getCard(id, list);
+                                        return (
+                                            <div key={id} className="flex flex-col items-center animate-card-reveal" style={{ animationDelay: `${index * 0.2}s` }}>
+                                                <div className="relative mb-6 w-full aspect-[2/3] shadow-[0_0_30px_rgba(0,0,0,0.5)] rounded-lg overflow-hidden border border-white/10 group">
+                                                    <img src={card.img} alt={card.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                                    <div className="selection-badge text-sm !w-8 !h-8">{index + 1}</div>
+                                                </div>
+                                                <div className="text-center opacity-0 animate-fade-in" style={{ animationDelay: `${index * 0.2 + 0.5}s`, animationFillMode: 'forwards' }}>
+                                                    <h3 className="font-latin text-xs md:text-sm font-bold text-[#d4a373] mb-1">{card.title}</h3>
+                                                    {card.deTitle && <p className="font-latin text-[10px] md:text-xs text-[#aaa] tracking-wide mb-2">{card.deTitle}</p>}
+                                                    {card.phrase && <p className="text-xs text-[#888] italic tracking-widest border-t border-white/10 pt-2 mt-2 px-1 leading-relaxed">"{card.phrase}"</p>}
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-5 transition-opacity"></div>
-                                    </div>
-                                ))}
-                            </div>
-                            <p className="mt-8 text-xs text-[#999] tracking-widest animate-pulse">點擊任意卡背抽取</p>
-                        </div>
-                    )}
-
-                    {/* Stage 3: Result */}
-                    {stage === 'result' && selectedMain && subResult && (
-                        <div className="flex flex-col items-center w-full max-w-lg px-6 animate-fade-in">
-                            <div className="flex flex-col md:flex-row gap-8 items-center justify-center mb-8">
-                                {/* Main Card Display */}
-                                <div className="flex flex-col items-center">
-                                    <p className="text-xs text-[#999] mb-2 tracking-widest uppercase">Theme</p>
-                                    <div className="w-40 aspect-[2/3] rounded-lg overflow-hidden shadow-lg mb-3">
-                                        <img src={selectedMain.img} alt={selectedMain.title} className="w-full h-full object-cover" />
-                                    </div>
-                                    <h4 className="font-latin text-xs font-bold text-[#666]">{selectedMain.title}</h4>
-                                    <p className="text-[10px] text-[#999]">{selectedMain.zhTitle}</p>
+                                        )
+                                    })}
                                 </div>
 
-                                {/* Arrow */}
-                                <div className="text-[#ccc]">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-                                </div>
-
-                                {/* Sub Card Display */}
-                                <div className="flex flex-col items-center">
-                                    <p className="text-xs text-[#999] mb-2 tracking-widest uppercase">Insight</p>
-                                    <div className="w-40 aspect-[2/3] rounded-lg overflow-hidden shadow-lg mb-3 ring-2 ring-[#a05248] ring-offset-4 ring-offset-[#f4f4f0]">
-                                        <img src={subResult.img} alt={subResult.title} className="w-full h-full object-cover" />
-                                    </div>
-                                    <h4 className="font-latin text-xs font-bold text-[#a05248]">{subResult.title}</h4>
+                                <div className="mt-12">
+                                    {stage === 'main-reveal' ? (
+                                        <button onClick={() => setStage('sub-select')} className="px-8 py-2 border border-[#d4a373] text-[#d4a373] rounded-sm text-xs tracking-[0.2em] hover:bg-[#d4a373] hover:text-black transition-colors uppercase">
+                                            Phase II : Deep Dive
+                                        </button>
+                                    ) : (
+                                        <button onClick={() => { setStage('main-select'); setMainOrder([]); setSubOrder([]); }} className="px-8 py-2 text-[#666] rounded-full text-xs tracking-widest hover:text-[#bbb] transition-colors">
+                                            重置儀式
+                                        </button>
+                                    )}
                                 </div>
                             </div>
-                            
-                            <button 
-                                onClick={reset}
-                                className="mt-4 px-8 py-2 border border-[#ccc] text-[#888] rounded-full text-xs tracking-widest hover:bg-[#e0e0e0] hover:text-[#555] transition-colors"
-                            >
-                                重新抽牌
-                            </button>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             );
         };
@@ -417,7 +518,7 @@
                             left: p.left, 
                             width: p.size, 
                             height: p.size,
-                            animation: `float ${p.duration} ease-in-out infinite`,
+                            animation: `float-particle ${p.duration} ease-in-out infinite`,
                             animationDelay: p.delay
                         }}></div>
                     ))}
@@ -464,8 +565,8 @@
             // Dynamic header style based on tab
             const getHeaderStyle = () => {
                 if (activeTab === 'guide') return "bg-[#0f0c29] text-indigo-100 border-b border-indigo-900";
-                if (activeTab === 'blocks') return "bg-[#f4f4f0] text-[#555]";
-                return "bg-[#f4f4f0] text-[#555]"; // Triad Cards uses neutral light theme
+                if (activeTab === 'cards') return "bg-[#0a0a0c] text-[#e0e0e0] border-b border-gray-800"; // Dark header for Cards
+                return "bg-[#f4f4f0] text-[#555]"; 
             };
 
             return (
