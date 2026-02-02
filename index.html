@@ -128,6 +128,10 @@
         .theme-transition {
             transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
+        /* 拖曳游標樣式 */
+        .cursor-grab { cursor: grab; }
+        .cursor-grabbing { cursor: grabbing; }
     </style>
 </head>
 <body>
@@ -218,11 +222,13 @@
             const [mainOrder, setMainOrder] = useState([]); 
             const [subOrder, setSubOrder] = useState([]);
             const [particles, setParticles] = useState([]);
+            const scrollRef = useRef(null);
 
+            // Data Definitions
             const mainCardsData = [
-                { id: 'origin', title: 'Origo Animae', deTitle: 'Ursprung der Seele', phrase: 'Aus der Wurzel steigt das Licht', img: 'https://img.yra.tw/x/Origo%20Animae-2.png' },
-                { id: 'bond', title: 'Transmutatio Vinculi', deTitle: 'Wandel der Verbindung', phrase: 'Im Band fließt das Leben', img: 'https://img.yra.tw/x/Transmutatio%20Vinculi-2.png' },
-                { id: 'future', title: 'Realis Futura', deTitle: 'Verwirklichung der Zukunft', phrase: 'Feuer führt zu den Sternen', img: 'https://img.yra.tw/x/Reakis%20Futura-2.png' }
+                { id: 'origin', title: 'Origo Animae', deTitle: 'Ursprung der Seele', img: 'https://img.yra.tw/x/Origo%20Animae-2.png' },
+                { id: 'bond', title: 'Transmutatio Vinculi', deTitle: 'Wandel der Verbindung', img: 'https://img.yra.tw/x/Transmutatio%20Vinculi-2.png' },
+                { id: 'future', title: 'Realis Futura', deTitle: 'Verwirklichung der Zukunft', img: 'https://img.yra.tw/x/Reakis%20Futura-2.png' }
             ];
 
             const subCardsData = [
@@ -230,6 +236,112 @@
                 { id: 'astra', title: 'ASTRA', img: 'https://img.yra.tw/x/ASTRA-2.png' },
                 { id: 'semen', title: 'Semen', img: 'https://img.yra.tw/x/Semen02.png' }
             ];
+
+            // Interpretation Dictionary
+            const interpretations = {
+                main: {
+                    "origin-bond-future": {
+                        title: "Radix Circulus", zhTitle: "根源環圈",
+                        poem: "根莖深埋影中，喚醒交織的脈流，\n焰光碎星河，預言的環圈永轉。\n起源之息，化作未來的漩渦。",
+                        note: "優勢在根源轉變到實現的流暢，憂慮可能在未來不確定——借過去力量前行。"
+                    },
+                    "origin-future-bond": {
+                        title: "Semen Stellarum", zhTitle: "星辰種子",
+                        poem: "起源的種焰，躍入星辰的裂隙，\n轉變遲來，卻織成無形的橋梁。\n未來先至，牽引根源的低語。",
+                        note: "優勢在起源直達未來，憂慮在轉變遲緩——用未來視野連結現在。"
+                    },
+                    "bond-origin-future": {
+                        title: "Vinculum Radicis", zhTitle: "根源連結",
+                        poem: "連結的波瀾，溯回隱藏的根源，\n實現如影隨形，點亮遺忘的火種。\n轉變為首，循環中尋得永恆。",
+                        note: "優勢在轉變引導根源，憂慮在實現隱藏——從連結中尋找永續平衡。"
+                    },
+                    "bond-future-origin": {
+                        title: "Fluctus Originis", zhTitle: "起源波瀾",
+                        poem: "互織的線索，引領焰河奔向盡頭，\n起源回響，成為未來的幽光。\n轉變開啟，根莖在星中重生。",
+                        note: "優勢在轉變推動實現，憂慮在起源回響——用未來光輝重塑根基。"
+                    },
+                    "future-origin-bond": {
+                        title: "Astra Radix", zhTitle: "根源星辰",
+                        poem: "預言的星芒，先落起源的土壤，\n連結緩緩綻放，如霧中隱現的藤。\n未來引路，根源與轉變交融。",
+                        note: "優勢在未來喚醒起源，憂慮在連結緩慢——讓預言融合內外。"
+                    },
+                    "future-bond-origin": {
+                        title: "Vortex Seminis", zhTitle: "種子漩渦",
+                        poem: "實現的漩渦，吞噬連結的餘輝，\n起源悄然甦醒，在影中編織新環。\n未來倒轉，根莖成為永夜的燈。",
+                        note: "優勢在未來轉化連結，憂慮在起源甦醒——用漩渦力量照亮黑暗。"
+                    }
+                },
+                sub: {
+                    "semen-arbor-astra": {
+                        title: "Umbra Arboris", zhTitle: "樹影幽暗",
+                        poem: "種子的幽暗，蔓生樹影的糾纏，\n星辰遙遠，卻在根中隱藏呼喚。\n起源不滿，指引向光的無形枝。",
+                        note: "不滿在起源蔓延到未來，指引從根源尋找光——療癒內在糾纏。"
+                    },
+                    "semen-astra-arbor": {
+                        title: "Fragmentum Stellarum", zhTitle: "星辰碎粒",
+                        poem: "起源的碎粒，散落星河的邊緣，\n樹木遲緩生長，承載預言的重量。\n種焰黯淡，指引在夜中尋枝。",
+                        note: "不滿在起源散落未來，指引用樹木支撐——耐心承載未知。"
+                    },
+                    "arbor-semen-astra": {
+                        title: "Curvus Seminis", zhTitle: "種子彎曲",
+                        poem: "樹枝的彎曲，壓抑種子的脈動，\n星光滲入，喚醒遺失的軌跡。\n現在不滿，指引起源通往天穹。",
+                        note: "不滿在現在壓抑起源，指引讓星光滲入——從根源通向廣闊。"
+                    },
+                    "arbor-astra-semen": {
+                        title: "Velum Astrae", zhTitle: "星辰面紗",
+                        poem: "樹影遮蔽星途，預言如風掠過，\n種子回歸土中，孕育新的輪迴。\n現在黯然，指引未來回溯根源。",
+                        note: "不滿在現在遮蔽未來，指引回歸種子——用輪迴重塑平衡。"
+                    },
+                    "astra-semen-arbor": {
+                        title: "Cadens Seminis", zhTitle: "種子墜落",
+                        poem: "星辰的墜落，攪動種子的沉睡，\n樹枝伸展，捕捉遺落的輝芒。\n未來不滿，指引起源化作綠焰。",
+                        note: "不滿在未來攪動起源，指引樹枝捕捉——轉化墜落為新生力量。"
+                    },
+                    "astra-arbor-semen": {
+                        title: "Wurzelstern", zhTitle: "根源之星",
+                        poem: "預言之星，纏繞樹木的枝蔓，\n種子深藏，等待循環的召喚。\n未來朦朧，指引現在回歸塵土。",
+                        note: "不滿在未來纏繞現在，指引回歸種子——在等待中尋找召喚。"
+                    }
+                }
+            };
+
+            // Custom Hook for Drag-to-Scroll
+            const useDraggableScroll = (ref) => {
+                const [isDragging, setIsDragging] = useState(false);
+                const [startX, setStartX] = useState(0);
+                const [scrollLeft, setScrollLeft] = useState(0);
+
+                const onMouseDown = (e) => {
+                    setIsDragging(true);
+                    setStartX(e.pageX - ref.current.offsetLeft);
+                    setScrollLeft(ref.current.scrollLeft);
+                };
+
+                const onMouseLeave = () => {
+                    setIsDragging(false);
+                };
+
+                const onMouseUp = () => {
+                    setIsDragging(false);
+                };
+
+                const onMouseMove = (e) => {
+                    if (!isDragging) return;
+                    e.preventDefault();
+                    const x = e.pageX - ref.current.offsetLeft;
+                    const walk = (x - startX) * 2; // scroll-fast
+                    ref.current.scrollLeft = scrollLeft - walk;
+                };
+
+                return {
+                    onMouseDown,
+                    onMouseLeave,
+                    onMouseUp,
+                    onMouseMove,
+                    isDragging,
+                    className: isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                };
+            };
 
             useEffect(() => {
                 const newParticles = [];
@@ -261,19 +373,50 @@
 
             const getCard = (id, list) => list.find(c => c.id === id);
 
-            const CardItem = ({ card, orderList, onClick, isSelectable }) => {
+            // Helper to get result data
+            const getResultData = () => {
+                if (stage === 'main-reveal' && mainOrder.length === 3) {
+                    const key = mainOrder.join('-');
+                    return interpretations.main[key];
+                }
+                if (stage === 'final-reveal' && subOrder.length === 3) {
+                    const key = subOrder.join('-');
+                    return interpretations.sub[key];
+                }
+                return null;
+            };
+
+            const dragEvents = useDraggableScroll(scrollRef);
+
+            // Card Item Component
+            const CardItem = ({ card, orderList, onClick, isSelectable, isDragging }) => {
                 const selectIdx = getSelectionIndex(card.id, orderList);
                 const floatDelay = `${card.id.charCodeAt(0) % 5}s`;
+
+                // Handle click only if not dragging to prevent accidental clicks while scrolling
+                const handleClick = () => {
+                    if (!isDragging && isSelectable) {
+                        onClick(card.id);
+                    }
+                };
 
                 return (
                     <div className="snap-center shrink-0 w-[75vw] sm:w-[320px] md:w-[280px] flex flex-col items-center justify-center p-4">
                         <div 
-                            onClick={() => isSelectable && onClick(card.id)}
-                            className={`relative w-full aspect-[2/3] rounded-xl overflow-hidden shadow-2xl transition-all duration-500 ease-out cursor-pointer ${isSelectable ? 'animate-float' : ''} ${selectIdx ? 'ring-2 ring-[#a05248] scale-95 opacity-60' : 'hover:scale-105 hover:z-10'}`}
+                            onMouseUp={handleClick}
+                            className={`relative w-full aspect-[2/3] rounded-xl overflow-hidden shadow-2xl transition-all duration-500 ease-out cursor-pointer group ${isSelectable ? 'animate-float' : ''} ${selectIdx ? 'ring-2 ring-[#a05248] scale-95 opacity-60' : 'hover:scale-105 hover:z-10'}`}
                             style={{ animationDelay: floatDelay }}
                         >
                             <img src={card.img} alt="card" className="w-full h-full object-cover pointer-events-none select-none" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60"></div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 transition-opacity group-hover:opacity-40"></div>
+                            
+                            {/* Hand Icon on Hover */}
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                                <div className="bg-black/30 p-2 rounded-full backdrop-blur-sm">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+                                </div>
+                            </div>
+
                             {selectIdx && <div className="selection-badge">{selectIdx}</div>}
                         </div>
                     </div>
@@ -297,7 +440,7 @@
                             <p className="text-[#888] text-[10px] md:text-xs font-latin tracking-[0.3em] mb-2 uppercase opacity-70">
                                 {stage.includes('main') ? 'Phase I : Origin' : 'Phase II : Subconscious'}
                             </p>
-                            <h2 className="text-lg md:text-xl font-light text-[#e0e0e0] tracking-widest min-h-[3rem] drop-shadow-lg">
+                            <h2 className="text-lg md:text-xl font-light text-[#e0e0e0] tracking-widest min-h-[3rem] drop-shadow-lg transition-all duration-500">
                                 {stage === 'main-select' && "左右滑動瀏覽，點擊卡牌決定順序"}
                                 {stage === 'main-reveal' && "三元顯現：連結、起源與未來"}
                                 {stage === 'sub-select' && "凝視虛空，再次排序你的直覺"}
@@ -307,13 +450,24 @@
 
                         {(stage === 'main-select' || stage === 'sub-select') && (
                             <div className="flex-1 flex flex-col items-center justify-center w-full">
-                                <div className="w-full flex overflow-x-auto snap-x snap-mandatory gap-4 px-[12.5vw] sm:px-[calc(50%-160px)] md:px-[calc(50%-140px)] py-10 no-scrollbar items-center">
+                                <div 
+                                    ref={scrollRef}
+                                    {...dragEvents}
+                                    className={`w-full flex overflow-x-auto snap-x snap-mandatory gap-4 px-[12.5vw] sm:px-[calc(50%-160px)] md:px-[calc(50%-140px)] py-10 no-scrollbar items-center select-none ${dragEvents.className}`}
+                                >
                                     {(stage === 'main-select' ? mainCardsData : subCardsData).map((card) => (
-                                        <CardItem key={card.id} card={card} orderList={stage === 'main-select' ? mainOrder : subOrder} onClick={stage === 'main-select' ? handleMainClick : handleSubClick} isSelectable={true} />
+                                        <CardItem 
+                                            key={card.id} 
+                                            card={card} 
+                                            orderList={stage === 'main-select' ? mainOrder : subOrder} 
+                                            onClick={stage === 'main-select' ? handleMainClick : handleSubClick} 
+                                            isSelectable={true} 
+                                            isDragging={dragEvents.isDragging}
+                                        />
                                     ))}
                                     <div className="w-[1px] shrink-0"></div> 
                                 </div>
-                                <div className="mt-2 text-[#666] text-xs tracking-widest animate-pulse">← SWIPE TO BROWSE →</div>
+                                <div className="mt-2 text-[#666] text-xs tracking-widest animate-pulse">← DRAG TO BROWSE →</div>
                                 <div className="mt-8 h-12">
                                     {(stage === 'main-select' ? mainOrder : subOrder).length === 3 && (
                                         <button onClick={stage === 'main-select' ? () => setStage('main-reveal') : () => setStage('final-reveal')} className="px-10 py-3 bg-[#a05248] text-white rounded-full text-sm tracking-[0.2em] shadow-[0_0_20px_rgba(160,82,72,0.4)] hover:bg-[#b06258] transition-all transform hover:scale-105">
@@ -325,29 +479,41 @@
                         )}
 
                         {(stage === 'main-reveal' || stage === 'final-reveal') && (
-                            <div className="flex-1 flex flex-col items-center w-full px-4">
-                                {stage === 'final-reveal' && (
-                                     <div className="flex justify-center gap-2 mb-8 opacity-50">
-                                         {mainOrder.map(id => (
-                                             <div key={id} className="w-8 h-12 rounded bg-gray-700 overflow-hidden">
-                                                 <img src={getCard(id, mainCardsData).img} className="w-full h-full object-cover" />
-                                             </div>
-                                         ))}
-                                     </div>
+                            <div className="flex-1 flex flex-col items-center w-full px-4 animate-fade-in">
+                                
+                                {/* Result Text Display - Top Priority */}
+                                {getResultData() && (
+                                    <div className="max-w-2xl w-full text-center mb-8 bg-black/20 backdrop-blur-sm p-6 rounded-lg border border-white/5 shadow-xl animate-card-reveal">
+                                        <div className="mb-4">
+                                            <h3 className="text-2xl md:text-3xl font-latin font-bold text-[#d4a373] mb-1 tracking-widest">{getResultData().title}</h3>
+                                            <p className="text-sm text-[#aaa] tracking-[0.3em] uppercase">{getResultData().zhTitle}</p>
+                                        </div>
+                                        <div className="w-16 h-[1px] bg-white/20 mx-auto my-6"></div>
+                                        <p className="text-[#e0e0e0] text-base md:text-lg font-serif leading-loose whitespace-pre-line mb-6 italic opacity-90">
+                                            {getResultData().poem}
+                                        </p>
+                                        <div className="bg-[#a05248]/10 p-4 rounded border border-[#a05248]/20 inline-block">
+                                            <p className="text-xs text-[#d4a373] tracking-widest">
+                                                <span className="font-bold mr-2">✦</span>
+                                                {getResultData().note}
+                                            </p>
+                                        </div>
+                                    </div>
                                 )}
-                                <div className="grid grid-cols-3 gap-3 md:gap-8 w-full max-w-4xl mt-4">
+
+                                {/* Revealed Cards */}
+                                <div className="grid grid-cols-3 gap-3 md:gap-8 w-full max-w-4xl mt-2">
                                     {(stage === 'main-reveal' ? mainOrder : subOrder).map((id, index) => {
                                         const list = stage === 'main-reveal' ? mainCardsData : subCardsData;
                                         const card = getCard(id, list);
                                         return (
-                                            <div key={id} className="flex flex-col items-center animate-card-reveal" style={{ animationDelay: `${index * 0.2}s` }}>
-                                                <div className="relative mb-6 w-full aspect-[2/3] shadow-[0_0_30px_rgba(0,0,0,0.5)] rounded-lg overflow-hidden border border-white/10 group">
+                                            <div key={id} className="flex flex-col items-center animate-card-reveal" style={{ animationDelay: `${index * 0.2 + 0.3}s` }}>
+                                                <div className="relative mb-4 w-full aspect-[2/3] shadow-[0_0_30px_rgba(0,0,0,0.5)] rounded-lg overflow-hidden border border-white/10 group">
                                                     <img src={card.img} alt={card.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                                                     <div className="selection-badge text-sm !w-8 !h-8">{index + 1}</div>
                                                 </div>
-                                                <div className="text-center opacity-0 animate-fade-in" style={{ animationDelay: `${index * 0.2 + 0.5}s`, animationFillMode: 'forwards' }}>
-                                                    <h3 className="font-latin text-xs md:text-sm font-bold text-[#d4a373] mb-1">{card.title}</h3>
-                                                    {card.phrase && <p className="text-xs text-[#888] italic tracking-widest border-t border-white/10 pt-2 mt-2 px-1 leading-relaxed">"{card.phrase}"</p>}
+                                                <div className="text-center opacity-0 animate-fade-in" style={{ animationDelay: `${index * 0.2 + 0.8}s`, animationFillMode: 'forwards' }}>
+                                                    <h3 className="font-latin text-[10px] md:text-xs font-bold text-[#666] mb-1">{card.title}</h3>
                                                 </div>
                                             </div>
                                         )
