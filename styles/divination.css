@@ -1,0 +1,557 @@
+/* ==========================================================================
+   靈感問路站 (yra.tw) — Digital Divination Experience Design System
+   Aesthetics: Eastern Mysticism · Cinematic Fantasy · Zen Quiet Luxury
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&display=swap');
+
+:root {
+  --ink-obsidian: #070709;
+  --ink-charcoal: #111216;
+  --ink-slate: #181a20;
+  --gold-antique: #c8a46b;
+  --gold-pale: #e6cca0;
+  --gold-dim: rgba(200, 164, 107, 0.28);
+  --cinnabar: #963d33;
+  --cinnabar-glow: rgba(150, 61, 51, 0.45);
+  --paper-warm: #efece6;
+  --ash-silver: #8e8a82;
+  --ash-dim: rgba(239, 236, 230, 0.48);
+
+  --ease-zen: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-silk: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100dvh;
+  background-color: var(--ink-obsidian);
+  color: var(--paper-warm);
+  font-family: 'Noto Serif TC', 'Songti TC', serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  selection-background-color: rgba(200, 164, 107, 0.25);
+}
+
+::selection {
+  background: rgba(200, 164, 107, 0.28);
+  color: var(--paper-warm);
+}
+
+.font-latin {
+  font-family: 'Cinzel', Georgia, serif;
+}
+
+.font-serif-tc {
+  font-family: 'Noto Serif TC', 'Songti TC', serif;
+}
+
+/* --- 單一共享 WebGL 全螢幕沉浸舞台 --- */
+#webgl-stage {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  z-index: 0;
+  pointer-events: none;
+  display: block;
+}
+
+/* --- 細微宣紙顆粒質感覆蓋層 (極輕量) --- */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* --- 電影級暗角壓邊 (Vignette) --- */
+.vignette-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 50% 42%,
+    transparent 38%,
+    rgba(5, 5, 8, 0.45) 75%,
+    rgba(3, 3, 5, 0.88) 100%
+  );
+}
+
+/* --- 主 UI 層 --- */
+#root {
+  position: relative;
+  z-index: 10;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- 玄墨玻璃材質面板 --- */
+.obsidian-glass {
+  background: linear-gradient(
+    180deg,
+    rgba(19, 20, 26, 0.72) 0%,
+    rgba(10, 10, 14, 0.86) 100%
+  );
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(200, 164, 107, 0.18);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(230, 204, 160, 0.12);
+}
+
+/* --- 鎏金細線分隔 --- */
+.gold-hairline {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(200, 164, 107, 0.55) 50%,
+    transparent 100%
+  );
+}
+
+/* --- 儀式按鈕：沉穩暗金 --- */
+.ritual-btn {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(200, 164, 107, 0.42);
+  background: linear-gradient(
+    180deg,
+    rgba(200, 164, 107, 0.14) 0%,
+    rgba(200, 164, 107, 0.05) 100%
+  );
+  color: var(--gold-pale);
+  letter-spacing: 0.35em;
+  padding-left: calc(2.4rem + 0.35em);
+  padding-right: 2.4rem;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition:
+    transform 0.4s var(--ease-zen),
+    border-color 0.4s ease,
+    box-shadow 0.4s ease,
+    background 0.4s ease,
+    opacity 0.3s ease;
+  will-change: transform;
+}
+
+.ritual-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(230, 204, 160, 0.24) 50%,
+    transparent 80%
+  );
+  transform: translateX(-120%);
+  transition: transform 0.85s var(--ease-zen);
+  pointer-events: none;
+}
+
+.ritual-btn:hover:not(:disabled) {
+  border-color: rgba(230, 204, 160, 0.85);
+  box-shadow:
+    0 0 32px rgba(200, 164, 107, 0.22),
+    inset 0 0 18px rgba(200, 164, 107, 0.12);
+  transform: translateY(-2px);
+}
+
+.ritual-btn:hover:not(:disabled)::before {
+  transform: translateX(120%);
+}
+
+.ritual-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.ritual-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ritual-btn-primary {
+  border-color: rgba(200, 164, 107, 0.65);
+  background: linear-gradient(
+    180deg,
+    rgba(150, 61, 51, 0.72) 0%,
+    rgba(105, 36, 30, 0.85) 100%
+  );
+  color: var(--paper-warm);
+  box-shadow: 0 10px 30px rgba(150, 61, 51, 0.28);
+}
+
+.ritual-btn-primary:hover:not(:disabled) {
+  border-color: rgba(230, 204, 160, 0.9);
+  box-shadow:
+    0 12px 38px rgba(150, 61, 51, 0.45),
+    0 0 24px rgba(200, 164, 107, 0.2);
+}
+
+/* --- 導覽列指示線 --- */
+.nav-tab {
+  position: relative;
+  color: var(--ash-silver);
+  transition: color 0.4s ease, opacity 0.4s ease;
+}
+
+.nav-tab:hover {
+  color: var(--paper-warm);
+}
+
+.nav-tab.active {
+  color: var(--gold-pale);
+}
+
+.nav-tab::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, var(--gold-antique), transparent);
+  transform: translateX(-50%);
+  transition: width 0.45s var(--ease-zen);
+}
+
+.nav-tab.active::after {
+  width: 64%;
+}
+
+/* ==========================================================================
+   三元牌 3D 卡牌系統 (GPU Accelerated 3D Perspective & Foil Sheen)
+   ========================================================================== */
+.tarot-stage-perspective {
+  perspective: 1400px;
+  perspective-origin: 50% 45%;
+}
+
+.card-3d-wrapper {
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 0.6s var(--ease-zen), filter 0.5s ease;
+}
+
+.card-3d-inner {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  transform-style: preserve-3d;
+  border-radius: 14px;
+  will-change: transform;
+}
+
+/* 卡牌實體 3D 厚度層 (居中於 Z=0，讓正反兩面 ±3px 對稱包覆，翻轉 180° 時完整顯露東方星盤牌背) */
+.card-3d-thickness {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  transform: translateZ(0px);
+  background: linear-gradient(135deg, #5e4726 0%, #dfc08a 38%, #8c6b3c 65%, #3d2c16 100%);
+  box-shadow:
+    0 30px 60px rgba(0, 0, 0, 0.82),
+    0 0 22px rgba(200, 164, 107, 0.12);
+  pointer-events: none;
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border: 1px solid rgba(200, 164, 107, 0.36);
+}
+
+.card-face-front {
+  background: #0c0d11;
+  transform: rotateY(0deg) translateZ(3px);
+}
+
+.card-face-back {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(200, 164, 107, 0.14) 0%, transparent 58%),
+    radial-gradient(circle at 50% 50%, #1d1b24 0%, #08090d 82%);
+  transform: rotateY(180deg) translateZ(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.85);
+}
+
+/* 牌背東方星盤幾何紋理 */
+.card-back-ornament {
+  position: absolute;
+  inset: 9px;
+  border: 1px solid rgba(200, 164, 107, 0.42);
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at center, rgba(230, 204, 160, 0.1) 0%, transparent 68%);
+}
+
+.card-back-ornament::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(200, 164, 107, 0.18);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+/* 動態反光與翻牌掃光層 */
+.card-sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 25%,
+    rgba(230, 204, 160, 0.28) 48%,
+    rgba(255, 255, 255, 0.18) 50%,
+    rgba(230, 204, 160, 0.22) 52%,
+    transparent 75%
+  );
+  mix-blend-mode: screen;
+  transition: opacity 0.35s ease;
+  will-change: transform, opacity;
+}
+
+.card-3d-wrapper:hover .card-sheen {
+  opacity: 0.75;
+}
+
+/* 選取序號鎏金印記 */
+.selection-seal {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #b54d42 0%, #7d2c24 100%);
+  border: 1.5px solid rgba(230, 204, 160, 0.75);
+  color: var(--paper-warm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.6),
+    0 0 16px rgba(200, 164, 107, 0.35);
+  z-index: 25;
+  animation: sealPop 0.45s var(--ease-zen) forwards;
+}
+
+@keyframes sealPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.45) rotate(-18deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.card-selected-glow {
+  box-shadow:
+    0 0 0 1.5px rgba(230, 204, 160, 0.92),
+    0 0 42px rgba(200, 164, 107, 0.34),
+    0 28px 56px rgba(0, 0, 0, 0.85);
+}
+
+.card-unselected-recede {
+  filter: brightness(0.72) saturate(0.85);
+}
+
+/* 柔和懸浮動畫 (僅用 transform 確保 GPU 加速) */
+@keyframes zenFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+.animate-zen-float {
+  animation: zenFloat 5.6s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* ==========================================================================
+   東方宣紙暗金卷軸系統 (Fortune Scroll Reveal)
+   ========================================================================== */
+.scroll-container {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.scroll-rod {
+  width: 14px;
+  min-height: 210px;
+  border-radius: 7px;
+  background: linear-gradient(
+    90deg,
+    #2b1e16 0%,
+    #5c4331 35%,
+    #c8a46b 55%,
+    #3d2b1f 85%,
+    #1c130e 100%
+  );
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.75),
+    inset 0 0 4px rgba(230, 204, 160, 0.35);
+  position: relative;
+  z-index: 5;
+  flex-shrink: 0;
+}
+
+.scroll-rod::before,
+.scroll-rod::after {
+  content: '';
+  position: absolute;
+  left: -2px;
+  width: 18px;
+  height: 12px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #755b33, #e6cca0, #755b33);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.scroll-rod::before {
+  top: -8px;
+}
+
+.scroll-rod::after {
+  bottom: -8px;
+}
+
+.scroll-paper-wrapper {
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  will-change: width, opacity;
+}
+
+.scroll-paper {
+  position: relative;
+  width: 100%;
+  min-height: 210px;
+  padding: 2rem 2.25rem;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(200, 164, 107, 0.09) 0%, transparent 65%),
+    linear-gradient(180deg, rgba(22, 21, 25, 0.94) 0%, rgba(13, 13, 17, 0.97) 100%);
+  border-top: 1px solid rgba(200, 164, 107, 0.42);
+  border-bottom: 1px solid rgba(200, 164, 107, 0.42);
+  box-shadow:
+    inset 18px 0 28px rgba(0, 0, 0, 0.65),
+    inset -18px 0 28px rgba(0, 0, 0, 0.65),
+    0 24px 55px rgba(0, 0, 0, 0.72);
+}
+
+.scroll-paper::before {
+  content: '';
+  position: absolute;
+  inset: 8px 12px;
+  border: 1px solid rgba(200, 164, 107, 0.16);
+  pointer-events: none;
+}
+
+/* 硃砂印章落款 */
+.cinnabar-stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.22rem 0.65rem;
+  border: 1px solid rgba(180, 74, 62, 0.78);
+  color: #d6766a;
+  background: rgba(150, 61, 51, 0.14);
+  font-size: 0.72rem;
+  letter-spacing: 0.25em;
+  border-radius: 2px;
+}
+
+/* --- 文字水墨顯影 --- */
+@keyframes inkFadeUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0);
+  }
+}
+
+.animate-ink-reveal {
+  animation: inkFadeUp 0.95s var(--ease-zen) forwards;
+  will-change: transform, opacity, filter;
+}
+
+/* --- 隱藏捲軸 --- */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.cursor-grab {
+  cursor: grab;
+}
+.cursor-grabbing {
+  cursor: grabbing;
+}
+
+/* --- 減弱動態輔助模式 --- */
+@media (prefers-reduced-motion: reduce) {
+  .animate-zen-float,
+  .animate-ink-reveal {
+    animation: none !important;
+  }
+  .card-3d-wrapper,
+  .ritual-btn {
+    transition-duration: 0.15s !important;
+  }
+}
+
+body.reduced-motion .animate-zen-float {
+  animation: none !important;
+}
