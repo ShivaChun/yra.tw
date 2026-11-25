@@ -1,7 +1,12 @@
 /**
  * sound-synth.js
  * 輕量級 Web Audio API 程式化儀式音效合成器（零外部音訊檔）
- * 合成：木質筊杯撞擊聲、竹籤搖晃碰撞聲、靈籤抽出清鳴、卡牌翻面氣流聲、卷軸展開聲
+ * 支援：
+ * - 溫潤硬木筊杯撞擊聲 (playWoodKnock)
+ * - 符文逐一點亮星音泛音 (playRuneIgnite)
+ * - 天文機械齒輪咬合與六瓣鎖開啟聲 (playMechanismLock / playBambooClack)
+ * - 魔法召喚聚能共鳴音 (playMagicHum)
+ * - 五聲音階磬音與絲帛展開聲 (playChime / playSilkSweep)
  */
 
 class RitualSoundSynth {
@@ -37,8 +42,6 @@ class RitualSoundSynth {
 
   /**
    * 溫潤硬木筊杯落地碰撞聲
-   * @param {number} intensity 0.1 ~ 1.0
-   * @param {number} pitchOffset 頻率微調（區分左右兩枚筊杯）
    */
   playWoodKnock(intensity = 0.7, pitchOffset = 0) {
     const ctx = this._ensureContext();
@@ -47,7 +50,6 @@ class RitualSoundSynth {
     const now = ctx.currentTime;
     const gainVal = Math.min(1, Math.max(0.08, intensity)) * 0.28;
 
-    // 主木質共振音
     const osc = ctx.createOscillator();
     const oscGain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
@@ -73,7 +75,6 @@ class RitualSoundSynth {
     osc.start(now);
     osc.stop(now + 0.15);
 
-    // 瞬間木擊高頻短促噪訊
     const bufferSize = Math.floor(ctx.sampleRate * 0.035);
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -99,36 +100,118 @@ class RitualSoundSynth {
   }
 
   /**
-   * 籤筒內竹籤清脆碰撞聲
-   * @param {number} intensity 0.1 ~ 1.0
+   * 天文齒輪棘輪運轉微響
    */
   playBambooClack(intensity = 0.5) {
     const ctx = this._ensureContext();
     if (!ctx) return;
 
     const now = ctx.currentTime;
-    const gainVal = Math.min(1, Math.max(0.05, intensity)) * 0.16;
+    const gainVal = Math.min(1, Math.max(0.05, intensity)) * 0.14;
 
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';
-    const freq = 920 + Math.random() * 480;
+    const freq = 980 + Math.random() * 420;
     osc.frequency.setValueAtTime(freq, now);
-    osc.frequency.exponentialRampToValueAtTime(freq * 0.72, now + 0.055);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.68, now + 0.05);
 
     gain.gain.setValueAtTime(0.001, now);
     gain.gain.linearRampToValueAtTime(gainVal, now + 0.003);
-    gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.06);
+    gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.055);
 
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.start(now);
-    osc.stop(now + 0.07);
+    osc.stop(now + 0.065);
+  }
+
+  /**
+   * 12 枚古代星宿符文逐一點亮時的清透泛音（隨序號微幅上揚）
+   */
+  playRuneIgnite(index = 0) {
+    const ctx = this._ensureContext();
+    if (!ctx) return;
+
+    // 東方宮商角徵羽五聲音階延伸頻率表
+    const scale = [
+      523.25, 587.33, 659.25, 783.99, 880.0, 1046.5,
+      1174.66, 1318.51, 1567.98, 1760.0, 2093.0, 2349.32
+    ];
+    const freq = scale[index % scale.length];
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, now);
+
+    gain.gain.setValueAtTime(0.0005, now);
+    gain.gain.linearRampToValueAtTime(0.055, now + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0004, now + 0.42);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.45);
+  }
+
+  /**
+   * 宇宙封印機關圓環咬合定位與中央六瓣玉鎖退栓聲
+   */
+  playMechanismLock() {
+    const ctx = this._ensureContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    // 雙擊精密金屬卡榫定位聲 + 低頻共鳴
+    [0, 0.11].forEach((offset, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      const base = i === 0 ? 420 : 640;
+      osc.frequency.setValueAtTime(base * 1.6, now + offset);
+      osc.frequency.exponentialRampToValueAtTime(base * 0.55, now + offset + 0.08);
+
+      gain.gain.setValueAtTime(0.001, now + offset);
+      gain.gain.linearRampToValueAtTime(0.16, now + offset + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.0006, now + offset + 0.12);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.14);
+    });
+  }
+
+  /**
+   * 魔法陣展開與能量聚集時的空靈和弦微鳴
+   */
+  playMagicHum() {
+    const ctx = this._ensureContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    [329.63, 493.88, 659.25].forEach((f, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f * 0.98, now);
+      osc.frequency.linearRampToValueAtTime(f, now + 0.85);
+
+      gain.gain.setValueAtTime(0.0004, now);
+      gain.gain.linearRampToValueAtTime(idx === 0 ? 0.055 : 0.032, now + 0.35);
+      gain.gain.exponentialRampToValueAtTime(0.0004, now + 1.35);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 1.4);
+    });
   }
 
   /**
    * 結果揭曉時的東方古磬清鳴（柔和泛音）
-   * @param {'sacred'|'laugh'|'yin'|'chime'} tone
    */
   playChime(tone = 'chime') {
     const ctx = this._ensureContext();
@@ -136,10 +219,10 @@ class RitualSoundSynth {
 
     const now = ctx.currentTime;
     const freqMap = {
-      sacred: [528, 792, 1056], // 明朗五聲音階泛音
-      laugh: [440, 587.33],     // 從容微揚
-      yin: [293.66, 392],       // 沉靜低迴
-      chime: [493.88, 739.99]   // 靈籤清音
+      sacred: [528, 792, 1056],
+      laugh: [440, 587.33],
+      yin: [293.66, 392],
+      chime: [493.88, 739.99]
     };
     const freqs = freqMap[tone] || freqMap.chime;
 
@@ -149,7 +232,7 @@ class RitualSoundSynth {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(f, now + idx * 0.06);
 
-      const peak = (idx === 0 ? 0.11 : 0.045);
+      const peak = idx === 0 ? 0.11 : 0.045;
       gain.gain.setValueAtTime(0.0005, now + idx * 0.06);
       gain.gain.linearRampToValueAtTime(peak, now + idx * 0.06 + 0.03);
       gain.gain.exponentialRampToValueAtTime(0.0004, now + idx * 0.06 + 1.8);
@@ -176,7 +259,7 @@ class RitualSoundSynth {
     for (let i = 0; i < bufferSize; i++) {
       const t = i / bufferSize;
       const env = Math.sin(t * Math.PI);
-      data[i] = (Math.random() * 2 - 1) * env * 0.45;
+      data[i] = (Math.random() * 2 - 1) * env * 0.42;
     }
 
     const src = ctx.createBufferSource();
@@ -190,7 +273,7 @@ class RitualSoundSynth {
     filter.Q.setValueAtTime(1.5, now);
 
     const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.14, now);
+    gain.gain.setValueAtTime(0.13, now);
 
     src.connect(filter);
     filter.connect(gain);

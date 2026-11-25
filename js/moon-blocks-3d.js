@@ -119,11 +119,11 @@ function createAltarInlayTexture() {
   const cx = 512;
   const cy = 512;
 
-  // 玄墨青石基底
+  // 溫潤白玉青石基底（晨曦模式下呈現明亮溫雅白石，星夜聚光下藉由材質色乘算轉為深邃玄石）
   const bg = ctx.createRadialGradient(cx, cy, 40, cx, cy, 512);
-  bg.addColorStop(0, '#161820');
-  bg.addColorStop(0.58, '#0f1016');
-  bg.addColorStop(1, '#07080b');
+  bg.addColorStop(0, '#ebe5d9');
+  bg.addColorStop(0.58, '#ddd6c8');
+  bg.addColorStop(1, '#c8c0b2');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, 1024, 1024);
 
@@ -145,8 +145,8 @@ function createAltarInlayTexture() {
   const radii = [152, 265, 345, 392, 412];
   radii.forEach((r, idx) => {
     ctx.strokeStyle = idx === 1 || idx === 3
-      ? 'rgba(204, 168, 110, 0.42)'
-      : 'rgba(200, 164, 107, 0.20)';
+      ? 'rgba(156, 118, 60, 0.52)'
+      : 'rgba(156, 118, 60, 0.28)';
     ctx.lineWidth = idx === 3 ? 2.4 : 1.2;
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
@@ -161,10 +161,10 @@ function createAltarInlayTexture() {
     const rIn = isOctant ? 330 : isMajor ? 348 : 362;
     const rOut = 388;
     ctx.strokeStyle = isOctant
-      ? 'rgba(230, 204, 160, 0.58)'
+      ? 'rgba(148, 108, 48, 0.65)'
       : isMajor
-      ? 'rgba(200, 164, 107, 0.32)'
-      : 'rgba(200, 164, 107, 0.15)';
+      ? 'rgba(156, 118, 60, 0.38)'
+      : 'rgba(156, 118, 60, 0.20)';
     ctx.lineWidth = isOctant ? 2.2 : 1.0;
     ctx.beginPath();
     ctx.moveTo(Math.cos(a) * rIn, Math.sin(a) * rIn);
@@ -181,7 +181,7 @@ function createAltarInlayTexture() {
     ctx.save();
     ctx.rotate((k / 8) * Math.PI * 2);
     const bars = trigrams[k];
-    ctx.strokeStyle = 'rgba(208, 174, 118, 0.34)';
+    ctx.strokeStyle = 'rgba(152, 112, 54, 0.44)';
     ctx.lineWidth = 2.2;
     for (let b = 0; b < 3; b++) {
       const y = -286 - b * 11;
@@ -354,19 +354,20 @@ export class MoonBlocksScene {
   _initAltar() {
     const inlayTex = createAltarInlayTexture();
 
-    // 玄墨青石鑲金星盤祭壇主體
+    // 雙場景自適應青玉／黑曜鑲金星盤祭壇主體
     const altarGeom = new THREE.CylinderGeometry(4.35, 4.65, 0.28, 72);
-    const altarSideMat = new THREE.MeshStandardMaterial({
-      color: 0x0b0c11,
-      roughness: 0.5,
-      metalness: 0.35
+    this.altarSideMat = new THREE.MeshStandardMaterial({
+      color: 0xd8d2c6,
+      roughness: 0.48,
+      metalness: 0.25
     });
-    const altarTopMat = new THREE.MeshStandardMaterial({
+    this.altarTopMat = new THREE.MeshStandardMaterial({
       map: inlayTex,
+      color: 0xf4eee2,
       roughness: 0.36,
-      metalness: 0.28
+      metalness: 0.24
     });
-    const altar = new THREE.Mesh(altarGeom, [altarSideMat, altarTopMat, altarSideMat]);
+    const altar = new THREE.Mesh(altarGeom, [this.altarSideMat, this.altarTopMat, this.altarSideMat]);
     altar.position.y = -0.14;
     altar.receiveShadow = true;
     this.group.add(altar);
@@ -572,6 +573,20 @@ export class MoonBlocksScene {
 
   setReducedMotion(flag) {
     this.reducedMotion = Boolean(flag);
+  }
+
+  /**
+   * 同步 Luminous Mysticism 明暗雙場景色溫 (0 = 玄夜聚光, 1 = 晨曦暖白)
+   */
+  setLuminescence(lum) {
+    if (!this.altarTopMat || !this.altarSideMat) return;
+    const darkTop = new THREE.Color(0x161924);
+    const lightTop = new THREE.Color(0xf8f3e8);
+    this.altarTopMat.color.copy(darkTop).lerp(lightTop, lum);
+
+    const darkSide = new THREE.Color(0x0d1018);
+    const lightSide = new THREE.Color(0xdfd8cb);
+    this.altarSideMat.color.copy(darkSide).lerp(lightSide, lum);
   }
 
   setImpactHandler(fn) {
