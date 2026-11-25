@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>靈感問路站 | Digital Divination Experience</title>
+
+    <!-- React 18 & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- Babel Standalone for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- GSAP 3 (Cinematic Timeline Engine) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+    <!-- Three.js ES Module Import Map -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        }
+    }
+    </script>
+
+    <!-- Luminous Mysticism Design System -->
+    <link rel="stylesheet" href="./styles/divination.css">
+</head>
+<body data-scene-tone="luminous">
+    <!-- 全站單一共享 WebGL 沉浸舞台 -->
+    <canvas id="webgl-stage" aria-hidden="true"></canvas>
+    <div class="grain-overlay" aria-hidden="true"></div>
+    <div class="vignette-overlay" aria-hidden="true"></div>
+
+    <!-- React 五幕式儀式互動層 -->
+    <div id="root"></div>
+
+    <!-- 3D 雙場景舞台、物理與精密天體機關模組 -->
+    <script type="module" src="./js/stage-manager.js"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Icons = {
+            Moon: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+                </svg>
+            ),
+            Cards: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="15" height="20" x="4.5" y="2" rx="2"/>
+                    <path d="M9 7h6"/><path d="M9 12h6"/><path d="M12 16.5v.01"/>
+                </svg>
+            ),
+            Compass: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9.5"/>
+                    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+                </svg>
+            ),
+            Sparkle: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 3v3m0 12v3M3 12h3m12 0h3m-2.6-6.4-2.1 2.1M8.7 15.3l-2.1 2.1m0-11.8 2.1 2.1m6.6 6.6 2.1 2.1"/>
+                </svg>
+            ),
+            VolumeOn: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                </svg>
+            ),
+            VolumeOff: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                    <line x1="22" y1="9" x2="16" y2="15"/>
+                    <line x1="16" y1="9" x2="22" y2="15"/>
+                </svg>
+            )
+        };
+
+        const ROMAN = ['I', 'II', 'III'];
+
+        const setStageSceneTone = (tone) => {
+            document.body.dataset.sceneTone = tone;
+            if (window.DivinationStage && typeof window.DivinationStage.setSceneTone === 'function') {
+                window.DivinationStage.setSceneTone(tone);
+            }
+        };
+
+        // =====================================================================
+        // 三座神祕儀式入口 (PortalGateway) — 首頁直接導入三境頁面
+        // A. 擲筊 (Divine Response) · B. 三元牌 (Magical Oracle) · C. 宇宙指引 (Celestial Gate)
+        // =====================================================================
+        const PortalGateway = ({ onSelectPortal }) => {
+            const rowRef = useRef(null);
+
+            useEffect(() => {
+                setStageSceneTone('ethereal');
+                if (!window.gsap || !rowRef.current) return;
+                const shrines = rowRef.current.querySelectorAll('.portal-shrine');
+                const tl = window.gsap.fromTo(
+                    shrines,
+                    { opacity: 0, y: 28, scale: 0.96 },
+                    { opacity: 1, y: 0, scale: 1, duration: 0.85, stagger: 0.12, ease: 'power3.out' }
+                );
+                return () => tl.kill();
+            }, []);
+
+            return (
+                <section className="flex-1 flex flex-col items-center justify-center w-full max-w-5xl mx-auto px-4 sm:px-6 py-6">
+                    {/* 標題區 */}
+                    <div className="text-center mb-6 sm:mb-8 animate-ink-reveal">
+                        <p className="font-latin text-[10px] sm:text-xs tracking-[0.38em] text-theme-gold uppercase mb-2">
+                            DIGITAL DIVINATION SANCTUARY
+                        </p>
+                        <h2 className="text-2xl sm:text-3xl font-light tracking-[0.22em] pl-[0.22em] text-theme-primary mb-2">
+                            選擇你的指引儀式
+                        </h2>
+                        <p className="text-xs sm:text-sm text-theme-secondary tracking-[0.15em] font-light">
+                            三座神祕入口各自承載不同的回應方式，請依直覺輕觸喚醒
+                        </p>
+                    </div>
+
+                    {/* 三座神龕入口 */}
+                    <div
+                        ref={rowRef}
+                        className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6 w-full max-w-4xl"
+                    >
+                        {/* Portal A：擲筊 · Divine Response（台灣傳統朱紅木製月牙筊杯，一凸一平三分之四立體視角） */}
+                        <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => onSelectPortal('blocks')}
+                            onKeyDown={(e) => e.key === 'Enter' && onSelectPortal('blocks')}
+                            style={{ '--portal-aura': 'rgba(204, 152, 92, 0.34)' }}
+                            className="portal-shrine px-6 pt-9 pb-7 flex flex-col items-center text-center"
+                        >
+                            <div className="relative w-40 h-40 flex items-center justify-center mb-4">
+                                <svg viewBox="0 0 180 180" className="w-full h-full overflow-visible">
+                                    <defs>
+                                        {/* 陰面（圓弧凸面）：深潤亮面朱紅木漆漸層 */}
+                                        <linearGradient id="jiaobeiDomeGrad" x1="15%" y1="0%" x2="85%" y2="100%">
+                                            <stop offset="0%" stopColor="#d63024" />
+                                            <stop offset="42%" stopColor="#ad1d14" />
+                                            <stop offset="82%" stopColor="#7a110b" />
+                                            <stop offset="100%" stopColor="#540a06" />
+                                        </linearGradient>
+                                        {/* 陽面（平剖木面）：溫潤霧感淺朱紅實木漸層 */}
+                                        <linearGradient id="jiaobeiFlatGrad" x1="0%" y1="15%" x2="100%" y2="85%">
+                                            <stop offset="0%" stopColor="#d84335" />
+                                            <stop offset="48%" stopColor="#ea594a" />
+                                            <stop offset="100%" stopColor="#c23326" />
+                                        </linearGradient>
+                                        {/* 陽面下方外露之立體圓弧木頭厚度層 */}
+                                        <linearGradient id="jiaobeiBellySideGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                            <stop offset="0%" stopColor="#941811" />
+                                            <stop offset="60%" stopColor="#6b0e09" />
+                                            <stop offset="100%" stopColor="#460804" />
+                                        </linearGradient>
+                                        {/* 柔和立體落地投影 */}
+                                        <filter id="jiaobeiSoftShadow" x="-25%" y="-25%" width="150%" height="160%">
+                                            <feDropShadow dx="0" dy="6" stdDeviation="4.5" floodColor="#3d1812" floodOpacity="0.24" />
+                                        </filter>
+                                    </defs>
+
+                                    {/* 香檳金裝飾細圓環 */}
+                                    <g className="portal-halo-ring opacity-70">
+                                        <circle cx="90" cy="92" r="60" fill="none" stroke="#c8a46b" strokeWidth="0.95" strokeDasharray="3 4" />
+                                        <circle cx="90" cy="92" r="46" fill="rgba(223,193,141,0.13)" stroke="#c8a46b" strokeWidth="0.8" />
+                                    </g>
+
+                                    {/* 左上方獨立筊杯：陰面（圓弧凸面朝上，對標實拍圖之飽滿半月比例與圓鈍厚實端頭） */}
+                                    <g className="portal-moon-left" filter="url(#jiaobeiSoftShadow)">
+                                        <g transform="translate(65, 76) rotate(-32)">
+                                            {/* 底部圓潤實木厚邊 */}
+                                            <path
+                                                d="M -33 6 C -40 7, -42.5 1.5, -38 -5 C -22 -30, 22 -30, 38 -5 C 42.5 1.5, 40 7, 33 6 C 14 2.2, -14 2.2, -33 6 Z"
+                                                fill="#540905"
+                                                transform="translate(0.8, 3.8)"
+                                            />
+                                            {/* 飽滿半月形圓弧凸面主體（兩端圓鈍不尖刺） */}
+                                            <path
+                                                d="M -33 6 C -40 7, -42.5 1.5, -38 -5 C -22 -30, 22 -30, 38 -5 C 42.5 1.5, 40 7, 33 6 C 14 2.2, -14 2.2, -33 6 Z"
+                                                fill="url(#jiaobeiDomeGrad)"
+                                                stroke="#6e0e09"
+                                                strokeWidth="0.6"
+                                                strokeLinejoin="round"
+                                            />
+                                            {/* 圓弧凸背立體木漆反光脊線 */}
+                                            <path
+                                                d="M -29 -2 C -12 -20, 12 -20, 29 -2"
+                                                fill="none"
+                                                stroke="rgba(255, 228, 212, 0.56)"
+                                                strokeWidth="3.2"
+                                                strokeLinecap="round"
+                                            />
+                                            <path
+                                                d="M -19 -8 C -6 -16.5, 6 -16.5, 19 -8"
+                                                fill="none"
+                                                stroke="rgba(255, 246, 240, 0.38)"
+                                                strokeWidth="1.3"
+                                                strokeLinecap="round"
+                                            />
+                                        </g>
+                                    </g>
+
+                                    {/* 右下方獨立筊杯：陽面（飽滿半月平剖木面＋圓鈍兩端與平行實木側邊厚度） */}
+                                    <g className="portal-moon-right" filter="url(#jiaobeiSoftShadow)">
+                                        <g transform="translate(113, 112) rotate(-20)">
+                                            {/* 平行半月實木側邊立體厚度 */}
+                                            <path
+                                                d="M -33 6 C -40 7, -42.5 1.5, -38 -5 C -22 -29, 22 -29, 38 -5 C 42.5 1.5, 40 7, 33 6 C 14 2.4, -14 2.4, -33 6 Z"
+                                                fill="url(#jiaobeiBellySideGrad)"
+                                                transform="translate(1.2, 4.6)"
+                                            />
+                                            {/* 陽面平整朱紅木紋切面（兩端圓鈍溫潤） */}
+                                            <path
+                                                d="M -33 6 C -40 7, -42.5 1.5, -38 -5 C -22 -29, 22 -29, 38 -5 C 42.5 1.5, 40 7, 33 6 C 14 2.4, -14 2.4, -33 6 Z"
+                                                fill="url(#jiaobeiFlatGrad)"
+                                                stroke="#f6a896"
+                                                strokeOpacity="0.65"
+                                                strokeWidth="0.9"
+                                                strokeLinejoin="round"
+                                            />
+                                            {/* 平剖面縱向自然實木細紋 */}
+                                            <path
+                                                d="M -27 -4 C -9 -12, 9 -12, 27 -4"
+                                                fill="none"
+                                                stroke="rgba(128, 20, 14, 0.22)"
+                                                strokeWidth="1.0"
+                                                strokeLinecap="round"
+                                            />
+                                            <path
+                                                d="M -31 1.5 C -10 -4.5, 10 -4.5, 31 1.5"
+                                                fill="none"
+                                                stroke="rgba(255, 216, 200, 0.34)"
+                                                strokeWidth="0.95"
+                                                strokeLinecap="round"
+                                            />
+                                        </g>
+                                    </g>
+                                </svg>
+                            </div>
+                            <p className="font-latin text-[10px] tracking-[0.34em] text-theme-gold uppercase mb-1.5">
+                                DIVINE RESPONSE
+                            </p>
+                            <h3 className="text-xl font-normal tracking-[0.28em] pl-[0.28em] text-theme-primary mb-2">
+                                擲筊
+                            </h3>
+                            <p className="text-xs text-theme-secondary tracking-[0.12em] font-light leading-relaxed mb-4">
+                                心誠，則靈。
+                            </p>
+                            <span className="text-[11px] tracking-[0.26em] text-theme-gold border-b border-[#b89254]/45 pb-0.5">
+                                喚醒雙筊 →
+                            </span>
+                        </div>
+
+                        {/* Portal B：三元牌 · Magical Oracle */}
+                        <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => onSelectPortal('cards')}
+                            onKeyDown={(e) => e.key === 'Enter' && onSelectPortal('cards')}
+                            style={{ '--portal-aura': 'rgba(182, 166, 224, 0.38)' }}
+                            className="portal-shrine px-6 pt-9 pb-7 flex flex-col items-center text-center"
+                        >
+                            <div className="relative w-40 h-40 flex items-center justify-center mb-4">
+                                <svg viewBox="0 0 180 180" className="w-full h-full overflow-visible">
+                                    {/* 旋轉魔法符文陣光環 */}
+                                    <g className="portal-rune-wheel opacity-70">
+                                        <circle cx="90" cy="92" r="62" fill="rgba(207,196,230,0.16)" stroke="#b89254" strokeWidth="0.9" />
+                                        <circle cx="90" cy="92" r="54" fill="none" stroke="#9b8ec4" strokeWidth="0.8" strokeDasharray="4 3" />
+                                        <polygon points="90,34 140,121 40,121" fill="none" stroke="#c8a46b" strokeWidth="0.8" strokeOpacity="0.6" />
+                                        <polygon points="90,150 140,63 40,63" fill="none" stroke="#9b8ec4" strokeWidth="0.8" strokeOpacity="0.5" />
+                                    </g>
+                                    {/* 左右側翼牌陣 */}
+                                    <g className="portal-side-card-l" transform="translate(-14, 4) rotate(-12 90 95)">
+                                        <rect x="64" y="50" width="52" height="78" rx="6" fill="#232034" stroke="#c8a46b" strokeWidth="1.1" />
+                                        <circle cx="90" cy="89" r="13" fill="none" stroke="#c8a46b" strokeWidth="0.7" />
+                                    </g>
+                                    <g className="portal-side-card-r" transform="translate(14, 4) rotate(12 90 95)">
+                                        <rect x="64" y="50" width="52" height="78" rx="6" fill="#232034" stroke="#c8a46b" strokeWidth="1.1" />
+                                        <circle cx="90" cy="89" r="13" fill="none" stroke="#c8a46b" strokeWidth="0.7" />
+                                    </g>
+                                    {/* 中央浮起召喚主牌 */}
+                                    <g className="portal-hero-card">
+                                        <rect x="61" y="44" width="58" height="86" rx="7" fill="#1a1829" stroke="#e5cfa3" strokeWidth="1.6" />
+                                        <rect x="66" y="49" width="48" height="76" rx="4" fill="none" stroke="#cfc4e6" strokeWidth="0.75" />
+                                        <circle cx="90" cy="87" r="17" fill="rgba(229,207,163,0.12)" stroke="#e5cfa3" strokeWidth="1" />
+                                        <path d="M90 66 L94 83 L111 87 L94 91 L90 108 L86 91 L69 87 L86 83 Z" fill="#e5cfa3" />
+                                    </g>
+                                </svg>
+                            </div>
+                            <p className="font-latin text-[10px] tracking-[0.34em] text-theme-gold uppercase mb-1.5">
+                                MAGICAL ORACLE
+                            </p>
+                            <h3 className="text-xl font-normal tracking-[0.28em] pl-[0.28em] text-theme-primary mb-2">
+                                三元牌
+                            </h3>
+                            <p className="text-xs text-theme-secondary tracking-[0.12em] font-light leading-relaxed mb-4">
+                                來自古老的圖騰牌組，了解你的靈魂的現在、過去、未來
+                            </p>
+                            <span className="text-[11px] tracking-[0.26em] text-theme-gold border-b border-[#b89254]/45 pb-0.5">
+                                啟動召喚 →
+                            </span>
+                        </div>
+
+                        {/* Portal C：宇宙指引 (Celestial Gate — Cosmic Revelation) */}
+                        <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => onSelectPortal('guide')}
+                            onKeyDown={(e) => e.key === 'Enter' && onSelectPortal('guide')}
+                            style={{ '--portal-aura': 'rgba(138, 198, 236, 0.38)' }}
+                            className="portal-shrine px-6 pt-9 pb-7 flex flex-col items-center text-center"
+                        >
+                            <div className="relative w-40 h-40 flex items-center justify-center mb-4">
+                                <svg viewBox="0 0 180 180" className="w-full h-full overflow-visible">
+                                    <defs>
+                                        <linearGradient id="celestialBeamGrad" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#fff7e2" stopOpacity="0" />
+                                            <stop offset="50%" stopColor="#f5dfb0" stopOpacity="0.85" />
+                                            <stop offset="100%" stopColor="#9cd8f8" stopOpacity="0" />
+                                        </linearGradient>
+                                        <radialGradient id="portalNebulaGrad" cx="50%" cy="50%" r="50%">
+                                            <stop offset="0%" stopColor="#0b1530" stopOpacity="0.96" />
+                                            <stop offset="54%" stopColor="#0f2552" stopOpacity="0.92" />
+                                            <stop offset="74%" stopColor="#6ec8f5" stopOpacity="0.62" />
+                                            <stop offset="100%" stopColor="#dfc18d" stopOpacity="0" />
+                                        </radialGradient>
+                                    </defs>
+                                    {/* 中央垂直天體光柱 */}
+                                    <rect x="86" y="18" width="8" height="146" fill="url(#celestialBeamGrad)" opacity="0.72" />
+                                    {/* 多層三維傾斜星體軌道與星宿連線 */}
+                                    <g className="portal-halo-ring">
+                                        <ellipse cx="90" cy="60" rx="34" ry="11" transform="rotate(-8 90 60)" fill="none" stroke="#c8a46b" strokeWidth="1.2" />
+                                        <ellipse cx="90" cy="92" rx="62" ry="22" transform="rotate(14 90 92)" fill="none" stroke="#b89254" strokeWidth="1.6" />
+                                        <ellipse cx="90" cy="122" rx="40" ry="13" transform="rotate(-10 90 122)" fill="none" stroke="#9ab8d4" strokeWidth="1.15" />
+                                        <polyline points="38,76 50,68 62,72 56,84" fill="none" stroke="#c8a46b" strokeWidth="0.85" opacity="0.75" />
+                                        <circle cx="38" cy="76" r="1.8" fill="#b89254" />
+                                        <circle cx="50" cy="68" r="2.0" fill="#b89254" />
+                                        <circle cx="62" cy="72" r="1.8" fill="#b89254" />
+                                    </g>
+                                    <g className="portal-rune-wheel">
+                                        <ellipse cx="90" cy="92" rx="48" ry="18" transform="rotate(-24 90 92)" fill="none" stroke="#7cbbe0" strokeWidth="1.35" strokeDasharray="6 3" />
+                                        <circle cx="133" cy="76" r="3.2" fill="#fffaf0" stroke="#b89254" strokeWidth="1" />
+                                        <circle cx="46" cy="106" r="2.6" fill="#dcf3ff" stroke="#7cbbe0" strokeWidth="0.9" />
+                                    </g>
+                                    {/* 中央時空入口深洞與藍白日冕 */}
+                                    <g className="portal-hero-card">
+                                        <circle cx="90" cy="92" r="24" fill="url(#portalNebulaGrad)" />
+                                        <circle cx="90" cy="92" r="14.5" fill="#091126" stroke="#9be0ff" strokeWidth="1.6" />
+                                        <path d="M90 80 L92.2 89.8 L102 92 L92.2 94.2 L90 104 L87.8 94.2 L78 92 L87.8 89.8 Z" fill="#f7e4b8" opacity="0.92" />
+                                    </g>
+                                </svg>
+                            </div>
+                            <p className="font-latin text-[10px] tracking-[0.34em] text-theme-gold uppercase mb-1.5">
+                                CELESTIAL GATE
+                            </p>
+                            <h3 className="text-xl font-normal tracking-[0.28em] pl-[0.28em] text-theme-primary mb-2">
+                                宇宙指引
+                            </h3>
+                            <p className="text-xs text-theme-secondary tracking-[0.12em] font-light leading-relaxed mb-4">
+                                讓宇宙指引你顯化的道路
+                            </p>
+                            <span className="text-[11px] tracking-[0.26em] text-theme-gold border-b border-[#b89254]/45 pb-0.5">
+                                開啟星門 →
+                            </span>
+                        </div>
+                    </div>
+                </section>
+            );
+        };
+
+        // =====================================================================
+        // 1. 擲筊元件 (MoonBlocks) — 嚴格保留原有隨機演算與結果判斷
+        //    明暗轉換：待機空靈 → 擲筊漸暗聚光 (dusk) → 揭曉破曉回暖 (luminous)
+        // =====================================================================
+        const BLOCK_PHASE_LABELS = {
+            IDLE: '',
+            PREPARING: '合 掌 拜 筊 · 凝 神 聚 氣',
+            THROWING: '誠 心 擲 出 問 卜',
+            COLLISION: '青 石 落 地 回 響',
+            SETTLING: '陰 陽 靈 機 落 定',
+            REVEAL: '天 光 破 曉 揭 曉',
+            RESULT: ''
+        };
+
+        const MoonBlocks = ({ selectedIntent }) => {
+            const [phase, setPhase] = useState("IDLE");
+            const [blocks, setBlocks] = useState([0, 0]);
+            const [resultText, setResultText] = useState("");
+            const [resultDesc, setResultDesc] = useState("");
+            const [fallbackMode, setFallbackMode] = useState(false);
+
+            const sessionRef = useRef(0);
+            const fallbackTimerRef = useRef(null);
+            const isBusy = phase !== "IDLE" && phase !== "RESULT";
+
+            useEffect(() => {
+                setStageSceneTone('ethereal');
+                if (window.DivinationStage && !window.DivinationStage.isWebGLAvailable()) {
+                    setFallbackMode(true);
+                }
+                return () => {
+                    sessionRef.current++;
+                    if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+                    if (window.DivinationStage && typeof window.DivinationStage.resetMoonBlocks === 'function') {
+                        window.DivinationStage.resetMoonBlocks();
+                    }
+                };
+            }, []);
+
+            const toss = () => {
+                if (isBusy) return;
+
+                const mySession = ++sessionRef.current;
+                setPhase("PREPARING");
+                setResultText("");
+                setResultDesc("");
+                // 儀式啟動：柔和轉暗凸顯光影與木筊質感
+                setStageSceneTone('dusk');
+
+                // 既有核心隨機演算與判斷邏輯（100% 原封保留，絕不更動）
+                const b1 = Math.random() > 0.5 ? 1 : 0;
+                const b2 = Math.random() > 0.5 ? 1 : 0;
+                const sum = b1 + b2;
+                let text = "";
+                let desc = "";
+
+                if (sum === 1) {
+                    text = "聖筊";
+                    desc = "所願可成，心誠則靈。";
+                } else if (sum === 2) {
+                    text = "笑筊";
+                    desc = "機緣未定，或再三思。";
+                } else {
+                    text = "陰筊";
+                    desc = "時機未到，靜候佳音。";
+                }
+
+                const onComplete = () => {
+                    if (sessionRef.current !== mySession) return;
+                    setBlocks([b1, b2]);
+                    setResultText(text);
+                    setResultDesc(desc);
+                    setPhase("RESULT");
+                    // 結果揭曉：回到溫暖明亮、具安定感的氛圍
+                    setStageSceneTone('luminous');
+                };
+
+                const onPhaseChange = (nextPhase) => {
+                    if (sessionRef.current !== mySession) return;
+                    setPhase(nextPhase);
+                    if (nextPhase === "REVEAL") {
+                        setStageSceneTone('luminous');
+                    }
+                };
+
+                const started3D =
+                    window.DivinationStage &&
+                    typeof window.DivinationStage.throwMoonBlocks === 'function' &&
+                    window.DivinationStage.throwMoonBlocks(b1, b2, onComplete, onPhaseChange);
+
+                if (!started3D) {
+                    setFallbackMode(true);
+                    fallbackTimerRef.current = setTimeout(() => {
+                        if (sessionRef.current !== mySession) return;
+                        setPhase("THROWING");
+                        fallbackTimerRef.current = setTimeout(onComplete, 700);
+                    }, 450);
+                }
+            };
+
+            const resetBlocks = () => {
+                sessionRef.current++;
+                if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+                setPhase("IDLE");
+                setResultText("");
+                setResultDesc("");
+                setStageSceneTone('ethereal');
+                if (window.DivinationStage && typeof window.DivinationStage.resetMoonBlocks === 'function') {
+                    window.DivinationStage.resetMoonBlocks();
+                }
+            };
+
+            const faceLabel = (val) => (val === 1 ? "陽 · 平面" : "陰 · 凸面");
+            const resultToneClass =
+                resultText === "聖筊"
+                    ? "text-[#9a6e28]"
+                    : resultText === "笑筊"
+                    ? "text-[#4c6282]"
+                    : "text-[#9e3f35]";
+
+            return (
+                <div
+                    className="flex-1 flex flex-col items-center justify-between w-full max-w-3xl mx-auto px-4 pt-5 pb-8 min-h-[calc(100dvh-136px)]"
+                    data-ritual-phase={phase}
+                >
+                    <div className="text-center animate-ink-reveal">
+                        <p className="font-latin text-[10px] md:text-xs tracking-[0.38em] text-theme-gold uppercase mb-1.5">
+                            DIVINE RESPONSE · 擲 筊 問 卜
+                        </p>
+                        <p className="text-sm md:text-base text-theme-primary tracking-[0.22em] font-light">
+                            {selectedIntent ? `默念「${selectedIntent.label}」所求之事` : '默念姓名與所求之事'}
+                        </p>
+                    </div>
+
+                    <div className="flex-1 w-full min-h-[240px] md:min-h-[300px] flex items-center justify-center pointer-events-none">
+                        {fallbackMode && (
+                            <div className="flex gap-10 items-center">
+                                {blocks.map((b, i) => (
+                                    <div
+                                        key={i}
+                                        className={`w-20 h-10 rounded-b-full border transition-all duration-500 ${
+                                            isBusy ? 'animate-bounce' : ''
+                                        } ${
+                                            b === 1
+                                                ? 'bg-[#e5d2b0] border-[#963d33]'
+                                                : 'bg-[#8f3228] border-[#c8a46b]/50'
+                                        }`}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="w-full flex flex-col items-center">
+                        <div className="min-h-[126px] flex items-center justify-center w-full mb-4">
+                            {phase === "RESULT" && (
+                                <div className="sanctuary-glass rounded-2xl px-8 py-5 text-center max-w-md w-full animate-ink-reveal">
+                                    <div className="flex items-center justify-center gap-4 text-[11px] tracking-[0.2em] text-theme-secondary mb-1.5">
+                                        <span>{faceLabel(blocks[0])}</span>
+                                        <span className="text-theme-gold">✦</span>
+                                        <span>{faceLabel(blocks[1])}</span>
+                                    </div>
+                                    <h2 className={`text-3xl md:text-4xl font-normal tracking-[0.35em] pl-[0.35em] mb-2 ${resultToneClass}`}>
+                                        {resultText}
+                                    </h2>
+                                    <div className="gold-hairline w-20 mx-auto my-2.5"></div>
+                                    <p className="text-theme-primary text-sm tracking-[0.18em] font-light">
+                                        {resultDesc}
+                                    </p>
+                                </div>
+                            )}
+
+                            {isBusy && (
+                                <div className="flex flex-col items-center gap-2.5">
+                                    <p className="text-xs tracking-[0.36em] text-[#f0dab2] animate-pulse pl-[0.36em]">
+                                        {BLOCK_PHASE_LABELS[phase] || '請 示 中'}
+                                    </p>
+                                    <div className="flex items-center gap-1.5">
+                                        {['PREPARING', 'THROWING', 'COLLISION', 'SETTLING', 'REVEAL'].map((step) => (
+                                            <span
+                                                key={step}
+                                                className={`h-1 rounded-full transition-all duration-300 ${
+                                                    phase === step ? 'w-5 bg-[#f2dcb0]' : 'w-1.5 bg-[#c8a46b]/35'
+                                                }`}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={toss}
+                                disabled={isBusy}
+                                className="ritual-btn ritual-btn-primary rounded-full py-3.5 text-sm font-normal outline-none"
+                            >
+                                {isBusy ? '請 示 中' : phase === 'RESULT' ? '再 次 擲 筊' : '誠 心 擲 筊'}
+                            </button>
+                            {phase === 'RESULT' && (
+                                <button
+                                    onClick={resetBlocks}
+                                    className="ritual-btn rounded-full py-3.5 !px-6 text-xs font-normal outline-none"
+                                >
+                                    重置
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // =====================================================================
+        // 2. 三元牌元件 (TriadCards) — Magical Card Summoning 六階段召喚儀式
+        //    流程：MAGIC_CIRCLE → ENERGY_GATHERING → CARD_MATERIALIZATION → CARD_AWAKENING → CARD_REVEAL → RESULT
+        //    嚴格保留既有雙階段選牌邏輯、6 張牌圖與 12 組完整詩文解讀
+        // =====================================================================
+        const SUMMON_PHASE_LABELS = {
+            IDLE: '',
+            SHUFFLING: '星 牌 佈 陣 中',
+            SELECTING: '',
+            MAGIC_CIRCLE: '展 開 神 聖 幾 何 魔 法 陣',
+            ENERGY_GATHERING: '星 辰 能 量 向 中 央 聚 集',
+            CARD_MATERIALIZATION: '聖 光 凝 結 實 體 魔 卡',
+            CARD_AWAKENING: '魔 卡 覺 醒 · 流 光 甦 醒',
+            CARD_REVEAL: '星 芒 爆 發 · 翻 轉 揭 示',
+            RESULT: ''
+        };
+
+        // 每張牌專屬的原創召喚元素光色（僅影響召喚特效，絕不更動原牌圖與牌義）
+        const CARD_SUMMON_THEMES = {
+            origin: { color: '#ebcf98', hex: 0xebcf98, glow: 'rgba(235, 207, 152, 0.65)' },
+            bond:   { color: '#d4c6f0', hex: 0xd4c6f0, glow: 'rgba(212, 198, 240, 0.65)' },
+            future: { color: '#98bee6', hex: 0x98bee6, glow: 'rgba(152, 190, 230, 0.65)' },
+            arbor:  { color: '#9cd0be', hex: 0x9cd0be, glow: 'rgba(156, 208, 190, 0.65)' },
+            astra:  { color: '#c2b6ee', hex: 0xc2b6ee, glow: 'rgba(194, 182, 238, 0.65)' },
+            semen:  { color: '#edd4a4', hex: 0xedd4a4, glow: 'rgba(237, 212, 164, 0.65)' }
+        };
+
+        // 原創精緻星象魔卡牌背圖騰
+        const CardBackOrnament = () => (
+            <div className="card-back-ornament">
+                <svg viewBox="0 0 120 180" className="w-[86%] h-[86%] opacity-85" fill="none" stroke="#e5cfa3" strokeWidth="0.8">
+                    <rect x="5" y="5" width="110" height="170" rx="5" strokeOpacity="0.55" />
+                    <circle cx="60" cy="90" r="40" strokeOpacity="0.85" />
+                    <circle cx="60" cy="90" r="32" strokeDasharray="2 2.5" strokeOpacity="0.65" />
+                    {/* 原創八芒星與日月弦弧 */}
+                    <polygon points="60,46 98,112 22,112" strokeOpacity="0.78" />
+                    <polygon points="60,134 98,68 22,68" strokeOpacity="0.58" />
+                    <path d="M60 20 L63.5 34 L77 37.5 L63.5 41 L60 55 L56.5 41 L43 37.5 L56.5 34 Z" fill="rgba(229,207,163,0.35)" />
+                    <path d="M46 146 Q60 134 74 146 Q60 141 46 146 Z" fill="rgba(207,196,230,0.45)" />
+                    <circle cx="60" cy="90" r="5" fill="#f5e3be" />
+                </svg>
+            </div>
+        );
+
+        // 獨立宣告於 TriadCards 外部，確保狀態變更時 DOM 穩定不重建
+        const InteractiveCard = ({ card, idx, orderList, isSelectingAllowed, onClick }) => {
+            const index = orderList.indexOf(card.id);
+            const selectIdx = index !== -1 ? index + 1 : null;
+            const isReceded = orderList.length === 3 && !selectIdx;
+            const theme = CARD_SUMMON_THEMES[card.id] || CARD_SUMMON_THEMES.origin;
+            const cardRef = useRef(null);
+            const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
+
+            const baseAngle = idx === 0 ? 7 : idx === 2 ? -7 : 0;
+            const baseZ = idx === 1 ? 16 : -6;
+            const floatDelay = `${idx * 0.85}s`;
+
+            const onMouseMove = (e) => {
+                if (!cardRef.current || !isSelectingAllowed) return;
+                const rect = cardRef.current.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / rect.width - 0.5;
+                const y = (e.clientY - rect.top) / rect.height - 0.5;
+                setTilt({ rx: -y * 15, ry: x * 17 });
+            };
+
+            const onMouseLeave = () => setTilt({ rx: 0, ry: 0 });
+
+            return (
+                <div className="deck-card-slot snap-center shrink-0 w-[64vw] max-w-[215px] sm:w-[198px] md:w-[215px] px-2 py-3 tarot-stage-perspective">
+                    <div
+                        ref={cardRef}
+                        onClick={() => onClick(card.id)}
+                        onMouseMove={onMouseMove}
+                        onMouseLeave={onMouseLeave}
+                        style={{
+                            animationDelay: floatDelay,
+                            '--card-element-color': theme.color,
+                            '--card-element-glow': theme.glow,
+                            transform: `translateZ(${selectIdx ? 34 : baseZ}px) rotateX(${tilt.rx}deg) rotateY(${baseAngle + tilt.ry}deg) translateY(${selectIdx ? -12 : 0}px)`
+                        }}
+                        className={`card-3d-wrapper animate-zen-float ${isSelectingAllowed ? 'cursor-pointer' : 'pointer-events-none'} ${isReceded ? 'card-unselected-recede' : ''}`}
+                    >
+                        <div className={`deck-card-inner card-3d-inner ${selectIdx ? 'card-selected-glow card-awakening-active' : ''}`}>
+                            <div className="card-awakening-aura"></div>
+                            <div className="card-3d-thickness"></div>
+                            <div className="card-face card-face-front">
+                                <img
+                                    src={card.img}
+                                    alt={card.title}
+                                    className="w-full h-full object-cover scale-[1.05] pointer-events-none select-none transition-transform duration-700"
+                                />
+                                <div className="card-arcane-frame"></div>
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10 pointer-events-none" />
+                                <div className="deck-sheen card-sheen" />
+                                {selectIdx && (
+                                    <div className="selection-seal" title={`第 ${selectIdx} 順位`}>
+                                        {ROMAN[selectIdx - 1]}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="card-face card-face-back">
+                                <CardBackOrnament />
+                            </div>
+                        </div>
+                    </div>
+                    <p className="deck-card-caption font-latin text-[10px] tracking-[0.22em] text-theme-secondary uppercase text-center mt-2.5 pointer-events-none">
+                        {card.title}
+                    </p>
+                </div>
+            );
+        };
+
+        const TriadCards = () => {
+            const [stage, setStage] = useState('main-select'); // main-select, main-reveal, sub-select, final-reveal, final-overview
+            const [cardPhase, setCardPhase] = useState('IDLE');
+            const [mainOrder, setMainOrder] = useState([]);
+            const [subOrder, setSubOrder] = useState([]);
+            const selectDeckRef = useRef(null);
+            const revealGridRef = useRef(null);
+            const revealTextRef = useRef(null);
+            const tlRef = useRef(null);
+            const sessionRef = useRef(0);
+
+            // 既有資料定義（100% 嚴格保留）
+            const mainCardsData = [
+                { id: 'origin', title: 'Origo Animae', deTitle: 'Ursprung der Seele', img: 'https://img.yra.tw/x/Origo%20Animae-2.png' },
+                { id: 'bond', title: 'Transmutatio Vinculi', deTitle: 'Wandel der Verbindung', img: 'https://img.yra.tw/x/Transmutatio%20Vinculi-2.png' },
+                { id: 'future', title: 'Realis Futura', deTitle: 'Verwirklichung der Zukunft', img: 'https://img.yra.tw/x/Reakis%20Futura-2.png' }
+            ];
+
+            const subCardsData = [
+                { id: 'arbor', title: 'Arbor', img: 'https://img.yra.tw/x/Arbor-1.png' },
+                { id: 'astra', title: 'ASTRA', img: 'https://img.yra.tw/x/ASTRA-2.png' },
+                { id: 'semen', title: 'Semen', img: 'https://img.yra.tw/x/Semen02.png' }
+            ];
+
+            // 既有 12 組解讀字典（100% 嚴格保留）
+            const interpretations = {
+                main: {
+                    "origin-bond-future": {
+                        title: "Radix Circulus", zhTitle: "根源環圈",
+                        poem: "根莖深埋影中，喚醒交織的脈流，\n焰光碎星河，預言的環圈永轉。\n起源之息，化作未來的漩渦。",
+                        note: "根源轉變至實現相當流暢，若對未來感到不確定——請借過去力量前行。"
+                    },
+                    "origin-future-bond": {
+                        title: "Semen Stellarum", zhTitle: "星辰種子",
+                        poem: "起源的種焰，躍入星辰的裂隙，\n轉變遲來，卻織成無形的橋梁。\n未來先至，牽引根源的低語。",
+                        note: "起源直達未來，轉變雖緩——請用未來視野連結現在。"
+                    },
+                    "bond-origin-future": {
+                        title: "Vinculum Radicis", zhTitle: "根源連結",
+                        poem: "連結的波瀾，溯回隱藏的根源，\n實現如影隨形，點亮遺忘的火種。\n轉變為首，循環中尋得永恆。",
+                        note: "轉變引導著根源，實現隱於其中——請從連結中尋找永續平衡。"
+                    },
+                    "bond-future-origin": {
+                        title: "Fluctus Originis", zhTitle: "起源波瀾",
+                        poem: "互織的線索，引領焰河奔向盡頭，\n起源回響，成為未來的幽光。\n轉變開啟，根莖在星中重生。",
+                        note: "轉變推動實現，起源產生回響——請用未來光輝重塑根基。"
+                    },
+                    "future-origin-bond": {
+                        title: "Astra Radix", zhTitle: "根源星辰",
+                        poem: "預言的星芒，先落起源的土壤，\n連結緩緩綻放，如霧中隱現的藤。\n未來引路，根源與轉變交融。",
+                        note: "未來喚醒起源，連結正緩緩發生——讓預言融合內外。"
+                    },
+                    "future-bond-origin": {
+                        title: "Vortex Seminis", zhTitle: "種子漩渦",
+                        poem: "實現的漩渦，吞噬連結的餘輝，\n起源悄然甦醒，在影中編織新環。\n未來倒轉，根莖成為永夜的燈。",
+                        note: "未來轉化連結，起源正在甦醒——用漩渦力量照亮黑暗。"
+                    }
+                },
+                sub: {
+                    "semen-arbor-astra": {
+                        title: "Umbra Arboris", zhTitle: "樹影幽暗",
+                        poem: "種子的幽暗，蔓生樹影的糾纏，\n星辰遙遠，卻在根中隱藏呼喚。\n起源不滿，指引向光的無形枝。",
+                        note: "起源蔓延至未來，請從根源尋找光亮，療癒內在的糾纏。"
+                    },
+                    "semen-astra-arbor": {
+                        title: "Fragmentum Stellarum", zhTitle: "星辰碎粒",
+                        poem: "起源的碎粒，散落星河的邊緣，\n樹木遲緩生長，承載預言的重量。\n種焰黯淡，指引在夜中尋枝。",
+                        note: "起源散落於未來，需用樹木支撐——耐心承載未知。"
+                    },
+                    "arbor-semen-astra": {
+                        title: "Curvus Seminis", zhTitle: "種子彎曲",
+                        poem: "樹枝的彎曲，壓抑種子的脈動，\n星光滲入，喚醒遺失的軌跡。\n現在不滿，指引起源通往天穹。",
+                        note: "現在壓抑了起源，讓星光滲入——從根源通向廣闊。"
+                    },
+                    "arbor-astra-semen": {
+                        title: "Velum Astrae", zhTitle: "星辰面紗",
+                        poem: "樹影遮蔽星途，預言如風掠過，\n種子回歸土中，孕育新的輪迴。\n現在黯然，指引未來回溯根源。",
+                        note: "現在遮蔽了未來，回歸種子——用輪迴重塑平衡。"
+                    },
+                    "astra-semen-arbor": {
+                        title: "Cadens Seminis", zhTitle: "種子墜落",
+                        poem: "星辰的墜落，攪動種子的沉睡，\n樹枝伸展，捕捉遺落的輝芒。\n未來不滿，指引起源化作綠焰。",
+                        note: "未來攪動了起源，樹枝捕捉——轉化墜落為新生力量。"
+                    },
+                    "astra-arbor-semen": {
+                        title: "Wurzelstern", zhTitle: "根源之星",
+                        poem: "預言之星，纏繞樹木的枝蔓，\n種子深藏，等待循環的召喚。\n未來朦朧，指引現在回歸塵土。",
+                        note: "未來纏繞著現在，回歸種子——在等待中尋找召喚。"
+                    }
+                }
+            };
+
+            const isReduced = () =>
+                window.DivinationStage && typeof window.DivinationStage.getReducedMotion === 'function'
+                    ? window.DivinationStage.getReducedMotion()
+                    : false;
+
+            useEffect(() => {
+                [...mainCardsData, ...subCardsData].forEach((c) => {
+                    const img = new Image();
+                    img.src = c.img;
+                });
+                return () => {
+                    sessionRef.current++;
+                    if (tlRef.current) tlRef.current.kill();
+                };
+            }, []);
+
+            // 同步三元牌狀態至 3D 魔法召喚舞台
+            useEffect(() => {
+                if (window.DivinationStage && typeof window.DivinationStage.syncTriadCardState === 'function') {
+                    const activeIds = stage === 'main-reveal' ? mainOrder : stage === 'final-reveal' ? subOrder : [];
+                    const colors = activeIds.map((id) => (CARD_SUMMON_THEMES[id] || CARD_SUMMON_THEMES.origin).color);
+                    window.DivinationStage.syncTriadCardState(cardPhase, stage, colors);
+                }
+            }, [cardPhase, stage]);
+
+            useEffect(() => {
+                const count =
+                    stage === 'main-select'
+                        ? mainOrder.length
+                        : stage === 'sub-select'
+                        ? subOrder.length
+                        : 3;
+                if (window.DivinationStage && typeof window.DivinationStage.notifyCardSelection === 'function') {
+                    window.DivinationStage.notifyCardSelection(count);
+                }
+            }, [stage, mainOrder.length, subOrder.length]);
+
+            // 選牌階段佈陣：SHUFFLING → SELECTING
+            useEffect(() => {
+                if (stage !== 'main-select' && stage !== 'sub-select') {
+                    if (stage === 'final-overview') setStageSceneTone('luminous');
+                    return;
+                }
+                const mySession = ++sessionRef.current;
+                if (tlRef.current) tlRef.current.kill();
+
+                setStageSceneTone('ethereal');
+                setCardPhase('SHUFFLING');
+
+                const reduced = isReduced();
+                if (window.gsap && selectDeckRef.current) {
+                    const slots = selectDeckRef.current.querySelectorAll('.deck-card-slot');
+                    const inners = selectDeckRef.current.querySelectorAll('.deck-card-inner');
+                    const sheens = selectDeckRef.current.querySelectorAll('.deck-sheen');
+                    const captions = selectDeckRef.current.querySelectorAll('.deck-card-caption');
+                    const isMobile = window.innerWidth < 768;
+                    const stackSpan = isMobile ? 42 : 205;
+
+                    const tl = window.gsap.timeline({
+                        onComplete: () => {
+                            if (sessionRef.current === mySession) {
+                                window.gsap.set([slots, inners], { clearProps: 'transform' });
+                                setCardPhase('SELECTING');
+                            }
+                        }
+                    });
+                    tlRef.current = tl;
+
+                    if (reduced) {
+                        tl.fromTo(slots, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.25, stagger: 0.05 });
+                    } else {
+                        window.gsap.set(captions, { opacity: 0, y: 8 });
+                        window.gsap.set(inners, { rotateY: 180, rotateZ: (i) => (i - 1) * 4 });
+
+                        tl.fromTo(
+                            slots,
+                            { opacity: 0, y: 36, scale: 0.86, x: (i) => (1 - i) * stackSpan },
+                            {
+                                opacity: 1,
+                                y: -6,
+                                scale: 0.95,
+                                x: (i) => (1 - i) * stackSpan * 0.9,
+                                duration: 0.32,
+                                ease: 'power3.out',
+                                onStart: () => window.DivinationStage && window.DivinationStage.playCardRevealSound()
+                            }
+                        );
+
+                        tl.to(slots, {
+                            x: (i) => (i === 0 ? stackSpan * 0.4 : i === 2 ? -stackSpan * 0.4 : 0),
+                            y: (i) => (i === 1 ? -18 : 4),
+                            scale: 0.98,
+                            duration: 0.26,
+                            ease: 'sine.inOut'
+                        });
+
+                        tl.to(slots, {
+                            x: 0,
+                            y: 0,
+                            scale: 1,
+                            duration: 0.42,
+                            stagger: 0.06,
+                            ease: 'expo.out'
+                        });
+
+                        tl.to(inners, { rotateY: 0, rotateZ: 0, duration: 0.64, stagger: 0.08, ease: 'expo.inOut' }, '-=0.2');
+                        tl.fromTo(
+                            sheens,
+                            { xPercent: -130, opacity: 0 },
+                            { xPercent: 130, opacity: 0.82, duration: 0.55, stagger: 0.08, ease: 'power2.inOut' },
+                            '-=0.55'
+                        );
+                        tl.to(captions, { opacity: 1, y: 0, duration: 0.35, stagger: 0.06 }, '-=0.22');
+                    }
+                } else {
+                    setCardPhase('SELECTING');
+                }
+
+                return () => {
+                    if (tlRef.current) tlRef.current.kill();
+                };
+            }, [stage]);
+
+            // 六階段奇幻魔法卡牌召喚演出：
+            // MAGIC_CIRCLE → ENERGY_GATHERING → CARD_MATERIALIZATION → CARD_AWAKENING → CARD_REVEAL → RESULT
+            useEffect(() => {
+                if (stage !== 'main-reveal' && stage !== 'final-reveal') return;
+                const mySession = ++sessionRef.current;
+                if (tlRef.current) tlRef.current.kill();
+
+                const reduced = isReduced();
+                const chosenIds = stage === 'main-reveal' ? mainOrder : subOrder;
+
+                // 儀式啟動：柔和轉暗進入星夜聚光舞台，凸顯幾何魔法陣與召喚光芒
+                setStageSceneTone('dusk');
+                setCardPhase('MAGIC_CIRCLE');
+
+                if (window.gsap && revealGridRef.current) {
+                    const cardInners = revealGridRef.current.querySelectorAll('.reveal-card-inner');
+                    const sheens = revealGridRef.current.querySelectorAll('.reveal-sheen');
+                    const titles = revealGridRef.current.querySelectorAll('.reveal-card-title');
+
+                    // 初始隱藏卡牌，讓舞台先完整呈現「1. 幾何魔法陣展開」與「2. 螺旋能量向中央聚集」
+                    window.gsap.set(cardInners, {
+                        opacity: 0,
+                        scale: 0.68,
+                        y: 36,
+                        z: -60,
+                        rotateY: 180,
+                        filter: 'brightness(2.4) blur(6px)'
+                    });
+                    window.gsap.set(titles, { opacity: 0, y: 8 });
+
+                    const tl = window.gsap.timeline();
+                    tlRef.current = tl;
+
+                    // Stage 1: MAGIC_CIRCLE (0.76s) — 幾何魔法陣展開
+                    tl.to({}, { duration: reduced ? 0.15 : 0.76 });
+
+                    // Stage 2: ENERGY_GATHERING (0.74s) — 星塵與能量向中央聚集
+                    tl.call(() => {
+                        if (sessionRef.current === mySession) setCardPhase('ENERGY_GATHERING');
+                    });
+                    tl.to({}, { duration: reduced ? 0.15 : 0.74 });
+
+                    // Stage 3: CARD_MATERIALIZATION (0.78s) — 卡牌從光芒中逐漸凝結成形
+                    tl.call(() => {
+                        if (sessionRef.current === mySession) {
+                            setCardPhase('CARD_MATERIALIZATION');
+                            if (window.DivinationStage) window.DivinationStage.playCardRevealSound();
+                        }
+                    });
+                    tl.to(cardInners, {
+                        opacity: 1,
+                        scale: 1.03,
+                        y: -14,
+                        z: 24,
+                        rotateY: 180,
+                        filter: 'brightness(1) blur(0px)',
+                        duration: reduced ? 0.25 : 0.78,
+                        stagger: reduced ? 0.05 : 0.12,
+                        ease: 'power3.out'
+                    });
+
+                    // Stage 4: CARD_AWAKENING (0.76s) — 卡牌懸浮中央、邊緣出現流動魔法光芒並微幅蓄勢旋轉
+                    tl.call(() => {
+                        if (sessionRef.current === mySession) {
+                            setCardPhase('CARD_AWAKENING');
+                            if (window.DivinationStage) window.DivinationStage.playRuneSound(5);
+                        }
+                    });
+                    tl.to(cardInners, {
+                        rotateY: 196,
+                        rotateX: 7,
+                        y: -20,
+                        z: 36,
+                        duration: reduced ? 0.2 : 0.76,
+                        stagger: 0.06,
+                        ease: 'sine.inOut'
+                    });
+
+                    // Stage 5: CARD_REVEAL — 光影爆發、卡牌翻轉揭示正面圖案（翻開前嚴格零劇透）
+                    tl.call(() => {
+                        if (sessionRef.current === mySession) setCardPhase('CARD_REVEAL');
+                    });
+
+                    const revealStart = tl.duration();
+                    cardInners.forEach((inner, i) => {
+                        const tAt = revealStart + i * (reduced ? 0.1 : 0.34);
+                        const cTheme = CARD_SUMMON_THEMES[chosenIds[i]] || CARD_SUMMON_THEMES.origin;
+
+                        if (reduced) {
+                            tl.to(inner, { rotateY: 0, rotateX: 0, y: 0, z: 0, scale: 1, duration: 0.3 }, tAt);
+                        } else {
+                            tl.to(
+                                inner,
+                                {
+                                    rotateY: 90,
+                                    rotateX: 2,
+                                    y: -26,
+                                    z: 70,
+                                    scale: 1.09,
+                                    duration: 0.32,
+                                    ease: 'power2.in',
+                                    onComplete: () => {
+                                        if (sessionRef.current === mySession && window.DivinationStage) {
+                                            window.DivinationStage.triggerCardFlipImpulse(i, cTheme.hex);
+                                            window.DivinationStage.playCardRevealSound();
+                                        }
+                                    }
+                                },
+                                tAt
+                            );
+
+                            tl.to(
+                                inner,
+                                {
+                                    rotateY: 0,
+                                    rotateX: 0,
+                                    y: 0,
+                                    z: 0,
+                                    scale: 1,
+                                    duration: 0.56,
+                                    ease: 'power4.out'
+                                },
+                                tAt + 0.32
+                            );
+
+                            if (sheens[i]) {
+                                tl.fromTo(
+                                    sheens[i],
+                                    { xPercent: -130, opacity: 0 },
+                                    { xPercent: 130, opacity: 0.9, duration: 0.6, ease: 'power2.inOut' },
+                                    tAt + 0.26
+                                );
+                            }
+
+                            if (titles[i]) {
+                                tl.to(titles[i], { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' }, tAt + 0.48);
+                            }
+                        }
+                    });
+
+                    // Stage 6: RESULT — 破曉回暖至溫暖明亮氛圍，呈現牌名與既有解讀內容
+                    tl.to({}, { duration: reduced ? 0.05 : 0.22 });
+                    tl.call(() => {
+                        if (sessionRef.current === mySession) {
+                            setStageSceneTone('luminous');
+                            setCardPhase('RESULT');
+                            if (window.DivinationStage) window.DivinationStage.playChime('sacred');
+                        }
+                    });
+
+                    if (revealTextRef.current) {
+                        const staggerItems = revealTextRef.current.querySelectorAll('.oracle-stagger-item');
+                        tl.fromTo(
+                            revealTextRef.current,
+                            { opacity: 0.1, y: 14, clipPath: 'inset(0% 0% 100% 0%)' },
+                            {
+                                opacity: 1,
+                                y: 0,
+                                clipPath: 'inset(0% 0% 0% 0%)',
+                                duration: reduced ? 0.28 : 0.76,
+                                ease: 'power4.out'
+                            }
+                        );
+                        if (staggerItems.length > 0 && !reduced) {
+                            tl.fromTo(
+                                staggerItems,
+                                { opacity: 0, y: 8, filter: 'blur(4px)' },
+                                { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.48, stagger: 0.09, ease: 'power3.out' },
+                                '-=0.45'
+                            );
+                        }
+                    }
+                } else {
+                    setStageSceneTone('luminous');
+                    setCardPhase('RESULT');
+                }
+
+                return () => {
+                    if (tlRef.current) tlRef.current.kill();
+                };
+            }, [stage]);
+
+            const isSelectingAllowed = cardPhase === 'SELECTING';
+            const isSummonLocked = [
+                'MAGIC_CIRCLE',
+                'ENERGY_GATHERING',
+                'CARD_MATERIALIZATION',
+                'CARD_AWAKENING',
+                'CARD_REVEAL'
+            ].includes(cardPhase);
+            const isFlowingEdge = cardPhase === 'CARD_AWAKENING' || cardPhase === 'CARD_REVEAL';
+
+            const handleMainClick = (id) => {
+                if (stage !== 'main-select' || !isSelectingAllowed) return;
+                if (mainOrder.includes(id)) setMainOrder(mainOrder.filter((item) => item !== id));
+                else if (mainOrder.length < 3) {
+                    setMainOrder([...mainOrder, id]);
+                    if (window.DivinationStage) window.DivinationStage.playCardRevealSound();
+                }
+            };
+
+            const handleSubClick = (id) => {
+                if (stage !== 'sub-select' || !isSelectingAllowed) return;
+                if (subOrder.includes(id)) setSubOrder(subOrder.filter((item) => item !== id));
+                else if (subOrder.length < 3) {
+                    setSubOrder([...subOrder, id]);
+                    if (window.DivinationStage) window.DivinationStage.playCardRevealSound();
+                }
+            };
+
+            const getCard = (id, list) => list.find((c) => c.id === id);
+            const getResultData = (type) => {
+                if (type === 'main' && mainOrder.length === 3) return interpretations.main[mainOrder.join('-')];
+                if (type === 'sub' && subOrder.length === 3) return interpretations.sub[subOrder.join('-')];
+                return null;
+            };
+
+            const activeOrder = stage === 'main-select' ? mainOrder : subOrder;
+            const activeCards = stage === 'main-select' ? mainCardsData : subCardsData;
+
+            return (
+                <div
+                    className="flex-1 flex flex-col items-center w-full max-w-5xl mx-auto px-4 pt-4 pb-8"
+                    data-ritual-phase={cardPhase}
+                >
+                    <div className="text-center mb-3 animate-ink-reveal">
+                        <p className="font-latin text-[10px] md:text-xs tracking-[0.36em] text-theme-gold uppercase mb-1.5">
+                            {stage.includes('main')
+                                ? 'MAGICAL SUMMONING · PHASE I'
+                                : stage.includes('sub')
+                                ? 'MAGICAL SUMMONING · PHASE II'
+                                : 'ORACLE INTEGRATION · PHASE III'}
+                        </p>
+                        <h2 className="text-base md:text-xl font-light text-theme-primary tracking-[0.16em] max-w-2xl mx-auto leading-relaxed">
+                            {stage === 'main-select' && "主牌組：依照你現在生活中的感受，選擇最優先的順序"}
+                            {stage === 'main-reveal' && "三元召喚顯現：連結、起源與未來"}
+                            {stage === 'sub-select' && "子牌組：依照你現在生活中的感受，選擇最不優先的順序"}
+                            {stage === 'final-reveal' && "命運之流召喚：潛意識的低語"}
+                            {stage === 'final-overview' && "全覽對照：顯意識與潛意識的交織"}
+                        </h2>
+                    </div>
+
+                    {/* 選牌階段 */}
+                    {(stage === 'main-select' || stage === 'sub-select') && (
+                        <div className="flex-1 flex flex-col items-center justify-center w-full">
+                            <div
+                                ref={selectDeckRef}
+                                className="w-full flex md:justify-center overflow-x-auto snap-x snap-mandatory gap-4 md:gap-6 px-[18vw] md:px-4 py-3 no-scrollbar items-center"
+                            >
+                                {activeCards.map((card, idx) => (
+                                    <InteractiveCard
+                                        key={card.id}
+                                        card={card}
+                                        idx={idx}
+                                        orderList={activeOrder}
+                                        isSelectingAllowed={isSelectingAllowed}
+                                        onClick={stage === 'main-select' ? handleMainClick : handleSubClick}
+                                    />
+                                ))}
+                            </div>
+
+                            <div className="flex items-center gap-3 mt-1 mb-4">
+                                {[0, 1, 2].map((slot) => {
+                                    const filled = Boolean(activeOrder[slot]);
+                                    return (
+                                        <div
+                                            key={slot}
+                                            className={`flex items-center gap-2 px-3.5 py-1 rounded-full border text-[11px] font-latin tracking-[0.2em] transition-all duration-500 ${
+                                                filled
+                                                    ? 'border-[#b89254] bg-[#b89254]/18 text-theme-primary font-medium'
+                                                    : 'border-[#b89254]/25 text-theme-muted'
+                                            }`}
+                                        >
+                                            <span>{ROMAN[slot]}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="h-14 flex items-center justify-center">
+                                {cardPhase === 'SHUFFLING' ? (
+                                    <p className="text-xs tracking-[0.36em] text-theme-gold animate-pulse pl-[0.36em]">
+                                        {SUMMON_PHASE_LABELS.SHUFFLING}
+                                    </p>
+                                ) : activeOrder.length === 3 ? (
+                                    <button
+                                        onClick={() => setStage(stage === 'main-select' ? 'main-reveal' : 'final-reveal')}
+                                        disabled={!isSelectingAllowed}
+                                        className="ritual-btn ritual-btn-primary rounded-full py-3.5 text-sm animate-ink-reveal"
+                                    >
+                                        {stage === 'main-select' ? '啟動三元召喚' : '召喚潛意識全貌'}
+                                    </button>
+                                ) : (
+                                    <p className="text-xs tracking-[0.26em] text-theme-secondary">
+                                        請依直覺點選 {3 - activeOrder.length} 張魔卡定錨召喚序位
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 六階段召喚與揭示舞台 */}
+                    {(stage === 'main-reveal' || stage === 'final-reveal') && (
+                        <div className="flex-1 flex flex-col items-center justify-center w-full">
+                            <div
+                                ref={revealGridRef}
+                                className="grid grid-cols-3 gap-3 sm:gap-5 md:gap-7 w-full max-w-xl mb-4 tarot-stage-perspective"
+                            >
+                                {(stage === 'main-reveal' ? mainOrder : subOrder).map((id, index) => {
+                                    const list = stage === 'main-reveal' ? mainCardsData : subCardsData;
+                                    const card = getCard(id, list);
+                                    const cTheme = CARD_SUMMON_THEMES[id] || CARD_SUMMON_THEMES.origin;
+                                    return (
+                                        <div key={id} className="flex flex-col items-center tarot-stage-perspective">
+                                            <div
+                                                style={{
+                                                    '--card-element-color': cTheme.color,
+                                                    '--card-element-glow': cTheme.glow
+                                                }}
+                                                className={`reveal-card-inner card-3d-inner w-full max-w-[144px] ${
+                                                    isFlowingEdge ? 'card-awakening-active' : ''
+                                                }`}
+                                            >
+                                                <div className="card-awakening-aura"></div>
+                                                <div className="card-3d-thickness"></div>
+                                                <div className="card-face card-face-front">
+                                                    <img
+                                                        src={card.img}
+                                                        alt={card.title}
+                                                        className="w-full h-full object-cover scale-[1.05]"
+                                                    />
+                                                    <div className="card-arcane-frame"></div>
+                                                    <div className="reveal-sheen card-sheen" />
+                                                    <div className="selection-seal !w-7 !h-7 !text-xs !top-2 !right-2">
+                                                        {ROMAN[index]}
+                                                    </div>
+                                                </div>
+                                                <div className="card-face card-face-back">
+                                                    <CardBackOrnament />
+                                                </div>
+                                            </div>
+                                            <p className="reveal-card-title font-latin text-[10px] md:text-xs tracking-[0.18em] text-theme-secondary mt-2 uppercase opacity-0">
+                                                {card.title}
+                                            </p>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* 召喚期間階段指示與進度點（翻完前嚴格防劇透） */}
+                            {isSummonLocked && (
+                                <div className="min-h-[145px] flex flex-col items-center justify-center gap-3">
+                                    <p className="text-xs tracking-[0.36em] text-[#f4dfb4] animate-pulse pl-[0.36em]">
+                                        {SUMMON_PHASE_LABELS[cardPhase]}
+                                    </p>
+                                    <div className="flex items-center gap-1.5">
+                                        {[
+                                            'MAGIC_CIRCLE',
+                                            'ENERGY_GATHERING',
+                                            'CARD_MATERIALIZATION',
+                                            'CARD_AWAKENING',
+                                            'CARD_REVEAL'
+                                        ].map((st) => (
+                                            <span
+                                                key={st}
+                                                className={`h-1 rounded-full transition-all duration-300 ${
+                                                    cardPhase === st ? 'w-5 bg-[#f5e1b8]' : 'w-1.5 bg-[#c8a46b]/35'
+                                                }`}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {getResultData(stage === 'main-reveal' ? 'main' : 'sub') && (
+                                <div
+                                    ref={revealTextRef}
+                                    className={`sanctuary-glass max-w-2xl w-full text-center px-6 py-4 md:px-8 md:py-5 rounded-2xl mb-4 ${
+                                        cardPhase === 'RESULT' ? '' : 'hidden'
+                                    }`}
+                                >
+                                    <h3 className="oracle-stagger-item text-lg md:text-2xl font-latin font-semibold text-theme-gold tracking-[0.22em] mb-0.5">
+                                        {getResultData(stage === 'main-reveal' ? 'main' : 'sub').title}
+                                    </h3>
+                                    <p className="oracle-stagger-item text-xs text-theme-secondary tracking-[0.34em]">
+                                        {getResultData(stage === 'main-reveal' ? 'main' : 'sub').zhTitle}
+                                    </p>
+                                    <div className="oracle-stagger-item gold-hairline w-24 mx-auto my-2.5"></div>
+                                    <div className="text-theme-primary text-sm md:text-[15px] leading-relaxed mb-3.5 font-light space-y-1">
+                                        {getResultData(stage === 'main-reveal' ? 'main' : 'sub')
+                                            .poem.split('\n')
+                                            .map((line, lIdx) => (
+                                                <p key={lIdx} className="oracle-stagger-item">
+                                                    {line}
+                                                </p>
+                                            ))}
+                                    </div>
+                                    <div className="oracle-stagger-item bg-[#b89254]/12 border border-[#b89254]/35 rounded-xl px-4 py-2 inline-block">
+                                        <p className="text-xs md:text-sm text-theme-primary tracking-[0.12em] leading-relaxed">
+                                            <span className="mr-2 text-theme-gold">✦</span>
+                                            {getResultData(stage === 'main-reveal' ? 'main' : 'sub').note}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="min-h-[44px] flex items-center justify-center">
+                                {cardPhase === 'RESULT' && (
+                                    stage === 'main-reveal' ? (
+                                        <button
+                                            onClick={() => setStage('sub-select')}
+                                            className="ritual-btn ritual-btn-primary rounded-full py-3 text-xs uppercase animate-ink-reveal"
+                                        >
+                                            前往子牌組召喚
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => setStage('final-overview')}
+                                            className="ritual-btn ritual-btn-primary rounded-full py-3 text-xs uppercase animate-ink-reveal"
+                                        >
+                                            全覽對照
+                                        </button>
+                                    )
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 全覽對照 (final-overview) */}
+                    {stage === 'final-overview' && (
+                        <div className="flex-1 flex flex-col items-center w-full animate-ink-reveal">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full max-w-4xl">
+                                <div className="sanctuary-glass rounded-2xl p-5 md:p-6 flex flex-col justify-between">
+                                    <div>
+                                        <div className="flex items-center justify-center gap-2 mb-3">
+                                            <span className="cinnabar-stamp">顯意識 · 優先順序</span>
+                                        </div>
+                                        {getResultData('main') && (
+                                            <div className="text-center">
+                                                <h4 className="font-latin text-lg md:text-xl text-theme-gold tracking-[0.18em] mb-0.5">
+                                                    {getResultData('main').title}
+                                                </h4>
+                                                <p className="text-xs text-theme-secondary tracking-[0.3em] mb-3">
+                                                    {getResultData('main').zhTitle}
+                                                </p>
+                                                <div className="gold-hairline w-16 mx-auto mb-3"></div>
+                                                <p className="text-theme-primary text-sm leading-loose whitespace-pre-line mb-4 font-light">
+                                                    {getResultData('main').poem}
+                                                </p>
+                                                <p className="text-xs text-theme-primary tracking-wider bg-[#b89254]/10 border border-[#b89254]/25 p-3 rounded-xl leading-relaxed">
+                                                    {getResultData('main').note}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex justify-center gap-3 mt-5">
+                                        {mainOrder.map((id, idx) => (
+                                            <div key={id} className="w-12 h-18 rounded-md overflow-hidden border border-[#b89254]/45 relative shadow-md">
+                                                <img src={getCard(id, mainCardsData).img} alt="" className="w-full h-full object-cover" />
+                                                <div className="absolute top-0 right-0 bg-[#9e4238] text-white font-latin text-[9px] w-4 h-4 flex items-center justify-center">
+                                                    {ROMAN[idx]}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="sanctuary-glass rounded-2xl p-5 md:p-6 flex flex-col justify-between">
+                                    <div>
+                                        <div className="flex items-center justify-center gap-2 mb-3">
+                                            <span className="cinnabar-stamp !border-[#7b93b2]/55 !text-[#4c6586] !bg-[#7b93b2]/12">
+                                                潛意識 · 非優先順序
+                                            </span>
+                                        </div>
+                                        {getResultData('sub') && (
+                                            <div className="text-center">
+                                                <h4 className="font-latin text-lg md:text-xl text-theme-gold tracking-[0.18em] mb-0.5">
+                                                    {getResultData('sub').title}
+                                                </h4>
+                                                <p className="text-xs text-theme-secondary tracking-[0.3em] mb-3">
+                                                    {getResultData('sub').zhTitle}
+                                                </p>
+                                                <div className="gold-hairline w-16 mx-auto mb-3"></div>
+                                                <p className="text-theme-primary text-sm leading-loose whitespace-pre-line mb-4 font-light">
+                                                    {getResultData('sub').poem}
+                                                </p>
+                                                <p className="text-xs text-theme-primary tracking-wider bg-[#b89254]/10 border border-[#b89254]/25 p-3 rounded-xl leading-relaxed">
+                                                    {getResultData('sub').note}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex justify-center gap-3 mt-5">
+                                        {subOrder.map((id, idx) => (
+                                            <div key={id} className="w-12 h-18 rounded-md overflow-hidden border border-[#7b93b2]/45 relative shadow-md">
+                                                <img src={getCard(id, subCardsData).img} alt="" className="w-full h-full object-cover" />
+                                                <div className="absolute top-0 right-0 bg-[#3a4860] text-white font-latin text-[9px] w-4 h-4 flex items-center justify-center">
+                                                    {ROMAN[idx]}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-7">
+                                <button
+                                    onClick={() => {
+                                        setStage('main-select');
+                                        setMainOrder([]);
+                                        setSubOrder([]);
+                                    }}
+                                    className="ritual-btn rounded-full py-2.5 text-xs"
+                                >
+                                    重新開啟牌陣
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // =====================================================================
+        // 3. 宇宙指引元件 (RandomGuide) — Elegant Celestial Mechanism 巨型古老天體封印機關
+        //    流程：DORMANT → ALIGNMENT → ORBIT_ROTATION → SEAL_LOCKING → ENERGY_ACTIVATION → REVELATION (→ GUIDANCE)
+        //    嚴格保留既有 15 則指引資料與均勻隨機抽取邏輯
+        // =====================================================================
+        const CELESTIAL_INVOCATIONS = {
+            THE_VOID: {
+                tag: '靜 心 默 念',
+                main: '在心中輕輕浮現你想尋求指引的事',
+                sub: '萬物皆有回應，準備好後請輕觸下方開啟星門'
+            },
+            AWAKENING: {
+                tag: 'I / VI · 星 霧 甦 醒',
+                main: '萬籟歸寂，宇宙正在傾聽你的提問',
+                sub: '深空星霧悄然聚攏，感知你此刻的心念頻率⋯'
+            },
+            PORTAL_OPENING: {
+                tag: 'II / VI · 星 門 開 啟',
+                main: '撥開眼前的迷霧，開啟時空交會之門',
+                sub: '散落的星辰微光正隨煙霧甦醒、緩緩旋聚成環⋯'
+            },
+            CELESTIAL_ALIGNMENT: {
+                tag: 'III / VI · 群 星 歸 位',
+                main: '群星歸位，串連過去與未來的軌跡',
+                sub: '三道星環於深空交錯成形，正在對齊屬於你的方向⋯'
+            },
+            ENERGY_SYNCHRONIZATION: {
+                tag: 'IV / VI · 萬 象 共 鳴',
+                main: '萬象共鳴，將散落的星光匯聚於心',
+                sub: '星辰沿軌道加速巡行，答案正在核心深處凝聚⋯'
+            },
+            SEAL_BREAKING: {
+                tag: 'V / VI · 破 除 迷 障',
+                main: '撕開塵封的迷惘，願光穿透裂隙',
+                sub: '紫藍星能破封綻放，願眼前的困頓化為轉機⋯'
+            },
+            DIVINE_REVELATION: {
+                tag: 'VI / VI · 天 光 降 臨',
+                main: '天光貫穿星海，屬於你的指引即將顯現',
+                sub: '星霧化為漫天星塵，請靜心接納此刻的訊息⋯'
+            },
+            GUIDANCE: {
+                tag: '星 門 啟 示',
+                main: '星門啟示已現，在深空星光中細品你的訊息',
+                sub: ''
+            }
+        };
+
+        const CELESTIAL_ACTIVE_STEPS = [
+            'AWAKENING',
+            'PORTAL_OPENING',
+            'CELESTIAL_ALIGNMENT',
+            'ENERGY_SYNCHRONIZATION',
+            'SEAL_BREAKING',
+            'DIVINE_REVELATION'
+        ];
+
+        const RandomGuide = () => {
+            const [phase, setPhase] = useState("THE_VOID");
+            const [currentGuide, setCurrentGuide] = useState({ main: "", sub: "" });
+            const [oracleNo, setOracleNo] = useState(1);
+            const [fallbackMode, setFallbackMode] = useState(false);
+
+            const scrollPaperRef = useRef(null);
+            const stampRef = useRef(null);
+            const mainTextRef = useRef(null);
+            const subTextRef = useRef(null);
+            const tlRef = useRef(null);
+            const sessionRef = useRef(0);
+            const fallbackTimerRef = useRef(null);
+
+            const isBusy = phase !== "THE_VOID" && phase !== "GUIDANCE";
+            const showScroll = phase === "GUIDANCE";
+
+            // 既有 15 則指引資料（100% 嚴格保留，隻字不改）
+            const guides = [
+                { main: "「行到水窮處，坐看雲起時」", sub: "— 王維。適合靜觀其變，答案就在轉彎處。" },
+                { main: "「萬物皆有裂痕，那是光照進來的地方」", sub: "— 萊昂納德·科恩。擁抱不完美，那是突破點。" },
+                { main: "「月が綺麗ですね」", sub: "（月色真美）— 夏目漱石。珍惜眼前的含蓄與美好，不必急著說破。" },
+                { main: "「Stay hungry, stay foolish.」", sub: "（求知若渴，虛懷若谷）— 保持初衷，大膽去闖。" },
+                { main: "「回首向來蕭瑟處，也無風雨也無晴」", sub: "— 蘇軾。看淡得失，平靜是最大的力量。" },
+                { main: "「The woods are lovely, dark and deep.」", sub: "（森林可愛、幽暗而深邃）— 前方迷人但充滿挑戰，記得你的承諾。" },
+                { main: "「既然選擇了遠方，便只顧風雨兼程」", sub: "— 汪國真。目標已定，就不要再回頭猶豫。" },
+                { main: "「凡是過往，皆為序章」", sub: "— 莎士比亞。放下過去的包袱，新的篇章正在開始。" },
+                { main: "「知其不可而為之」", sub: "— 典出《論語》。有時明知艱難仍要去試，便是你的道。" },
+                { main: "「潘朵拉的盒子已打開，但希望仍留其中」", sub: "— 希臘神話。混難中必存生機。" },
+                { main: "「衝了，不要猶豫」", sub: "當下的直覺就是最準確的導航。" },
+                { main: "「現在不是時候」", sub: "退後一步，讓子彈飛一會兒。" },
+                { main: "「問問身邊長輩或智者的意見」", sub: "經驗的火炬能幫你照亮盲點。" },
+                { main: "「先去睡一覺，醒來再決定」", sub: "潛意識會在夢中為你整理混亂。" },
+                { main: "「放棄也是一種勇氣的表現」", sub: "止損是為了把能量留給更好的事。" }
+            ];
+
+            useEffect(() => {
+                // THE VOID：進入宇宙指引時沉入深邃星夜，營造星空與能量入口氛圍
+                setStageSceneTone('dusk');
+                if (window.DivinationStage && !window.DivinationStage.isWebGLAvailable()) {
+                    setFallbackMode(true);
+                }
+                return () => {
+                    sessionRef.current++;
+                    if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+                    if (tlRef.current) tlRef.current.kill();
+                    if (window.DivinationStage && typeof window.DivinationStage.resetCosmicOracle === 'function') {
+                        window.DivinationStage.resetCosmicOracle();
+                    }
+                };
+            }, []);
+
+            // GUIDANCE 階段：於深邃星海與中央天體光柱中凝結浮現「星穹光門啟示卡」
+            useEffect(() => {
+                if (phase !== "GUIDANCE") return;
+                if (tlRef.current) tlRef.current.kill();
+
+                const reduced =
+                    window.DivinationStage && typeof window.DivinationStage.getReducedMotion === 'function'
+                        ? window.DivinationStage.getReducedMotion()
+                        : false;
+
+                if (window.gsap && scrollPaperRef.current) {
+                    const tl = window.gsap.timeline();
+                    tlRef.current = tl;
+
+                    tl.fromTo(
+                        scrollPaperRef.current,
+                        { opacity: 0, scale: 0.92, y: 14, filter: 'blur(10px) brightness(1.35)' },
+                        {
+                            opacity: 1,
+                            scale: 1,
+                            y: 0,
+                            filter: 'blur(0px) brightness(1)',
+                            duration: reduced ? 0.3 : 1.05,
+                            ease: 'power3.out',
+                            onStart: () => window.DivinationStage && window.DivinationStage.playCardRevealSound()
+                        }
+                    );
+
+                    if (stampRef.current) {
+                        tl.fromTo(
+                            stampRef.current,
+                            { opacity: 0, scale: 0.88, y: 8 },
+                            { opacity: 1, scale: 1, y: 0, duration: reduced ? 0.18 : 0.5, ease: 'power3.out' },
+                            '-=0.55'
+                        );
+                    }
+                    if (mainTextRef.current) {
+                        tl.fromTo(
+                            mainTextRef.current,
+                            { opacity: 0, y: 12, filter: 'blur(5px)' },
+                            { opacity: 1, y: 0, filter: 'blur(0px)', duration: reduced ? 0.2 : 0.68, ease: 'power3.out' },
+                            '-=0.32'
+                        );
+                    }
+                    if (subTextRef.current) {
+                        tl.fromTo(
+                            subTextRef.current,
+                            { opacity: 0, y: 10, filter: 'blur(3px)' },
+                            { opacity: 1, y: 0, filter: 'blur(0px)', duration: reduced ? 0.2 : 0.62, ease: 'power3.out' },
+                            '-=0.36'
+                        );
+                    }
+                }
+
+                return () => {
+                    if (tlRef.current) tlRef.current.kill();
+                };
+            }, [phase]);
+
+            const getGuide = () => {
+                if (isBusy) return;
+
+                const mySession = ++sessionRef.current;
+                setPhase("AWAKENING");
+                // 全程維持深邃宇宙星穹氛圍（含結果呈現），使指引畫面與動畫視覺完全一致
+                setStageSceneTone('dusk');
+
+                // 既有均勻隨機抽取邏輯（100% 嚴格保留）
+                const idx = Math.floor(Math.random() * guides.length);
+                const chosen = guides[idx];
+                const num = idx + 1;
+
+                const onRevealed = () => {
+                    if (sessionRef.current !== mySession) return;
+                    setOracleNo(num);
+                    setCurrentGuide(chosen);
+                    setStageSceneTone('dusk');
+                    setPhase("GUIDANCE");
+                };
+
+                const onPhaseChange = (nextPhase) => {
+                    if (sessionRef.current !== mySession) return;
+                    if (nextPhase !== "GUIDANCE") {
+                        setPhase(nextPhase);
+                    }
+                };
+
+                const started3D =
+                    window.DivinationStage &&
+                    typeof window.DivinationStage.invokeCosmicOracle === 'function' &&
+                    window.DivinationStage.invokeCosmicOracle(num, onRevealed, onPhaseChange);
+
+                if (!started3D) {
+                    setFallbackMode(true);
+                    fallbackTimerRef.current = setTimeout(() => {
+                        if (sessionRef.current !== mySession) return;
+                        setPhase("CELESTIAL_ALIGNMENT");
+                        fallbackTimerRef.current = setTimeout(onRevealed, 950);
+                    }, 450);
+                }
+            };
+
+            const resetRitual = () => {
+                sessionRef.current++;
+                if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+                if (tlRef.current) tlRef.current.kill();
+                setPhase("THE_VOID");
+                setStageSceneTone('dusk');
+                if (window.DivinationStage && typeof window.DivinationStage.resetCosmicOracle === 'function') {
+                    window.DivinationStage.resetCosmicOracle();
+                }
+            };
+
+            const formattedOracleLabel =
+                window.DivinationStage && typeof window.DivinationStage.formatOracleIndex === 'function'
+                    ? window.DivinationStage.formatOracleIndex(oracleNo)
+                    : `宇 宙 指 引 · ${oracleNo}`;
+
+            const invocation = CELESTIAL_INVOCATIONS[phase] || CELESTIAL_INVOCATIONS.THE_VOID;
+            const activeStepIdx = CELESTIAL_ACTIVE_STEPS.indexOf(phase);
+
+            return (
+                <div
+                    className="flex-1 flex flex-col items-center justify-between w-full max-w-3xl mx-auto px-4 pt-5 pb-8 min-h-[calc(100dvh-136px)]"
+                    data-ritual-phase={phase}
+                >
+                    <div className="text-center animate-ink-reveal">
+                        <p className="font-latin text-[10px] md:text-xs tracking-[0.38em] text-theme-gold uppercase mb-1.5">
+                            CELESTIAL GATE · 宇 宙 指 引
+                        </p>
+                        <p className="text-xs md:text-sm text-theme-secondary tracking-[0.2em] font-light">
+                            {showScroll ? invocation.main : '讓宇宙指引你顯化的道路'}
+                        </p>
+                    </div>
+
+                    <div className="flex-1 flex items-center justify-center w-full my-4">
+                        {showScroll ? (
+                            <div ref={scrollPaperRef} className="celestial-revelation-card text-center opacity-0">
+                                {/* 四角精緻星宿十字微芒 */}
+                                <span className="absolute top-3.5 left-4 text-[10px] text-[#9ad8ff]/65 select-none" aria-hidden="true">✦</span>
+                                <span className="absolute top-3.5 right-4 text-[10px] text-[#f5dfb0]/65 select-none" aria-hidden="true">✦</span>
+                                <span className="absolute bottom-3.5 left-4 text-[10px] text-[#f5dfb0]/55 select-none" aria-hidden="true">✦</span>
+                                <span className="absolute bottom-3.5 right-4 text-[10px] text-[#9ad8ff]/55 select-none" aria-hidden="true">✦</span>
+
+                                <div className="relative z-10 w-full flex flex-col items-center">
+                                    <div ref={stampRef} className="mb-4 opacity-0">
+                                        <span className="celestial-oracle-badge">
+                                            <span className="text-[10px] text-[#92dcff]">✧</span>
+                                            <span>{formattedOracleLabel}</span>
+                                            <span className="text-[10px] text-[#92dcff]">✧</span>
+                                        </span>
+                                    </div>
+                                    <p
+                                        ref={mainTextRef}
+                                        className="text-xl md:text-2xl font-normal text-[#f4f8ff] leading-relaxed tracking-[0.12em] mb-1 opacity-0 drop-shadow-[0_0_18px_rgba(130,208,255,0.25)]"
+                                    >
+                                        {currentGuide.main}
+                                    </p>
+                                    <div className="celestial-divider" aria-hidden="true">
+                                        <span className="celestial-divider-line" />
+                                        <span className="text-[10px] text-[#f6e3b8]/85">✦</span>
+                                        <span className="celestial-divider-line right" />
+                                    </div>
+                                    <p
+                                        ref={subTextRef}
+                                        className="text-xs md:text-sm text-[#c4d8f2] leading-relaxed tracking-[0.14em] font-light max-w-lg mx-auto opacity-0"
+                                    >
+                                        {currentGuide.sub}
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            /* 畫面正中央：隨每一階段即時顯影的儀式祝詞與星軌進度 */
+                            <div className="celestial-invocation-stage flex flex-col items-center justify-center">
+                                <div key={phase} className="celestial-invocation-anim flex flex-col items-center">
+                                    <div className="mb-3.5">
+                                        <span className="celestial-step-pill">
+                                            <span className="text-[9px] text-[#96e0ff]">✦</span>
+                                            <span>{invocation.tag}</span>
+                                            <span className="text-[9px] text-[#96e0ff]">✦</span>
+                                        </span>
+                                    </div>
+                                    <h3 className="celestial-invocation-main text-lg sm:text-xl md:text-2xl font-normal tracking-[0.18em] pl-[0.18em] leading-relaxed mb-2.5">
+                                        {invocation.main}
+                                    </h3>
+                                    <p className="celestial-invocation-sub text-xs sm:text-sm font-light tracking-[0.15em] leading-relaxed max-w-md">
+                                        {invocation.sub}
+                                    </p>
+                                </div>
+
+                                {/* 緊隨祝詞下方的中央六階星芒進度指示 */}
+                                {isBusy && (
+                                    <div className="flex items-center gap-2 mt-5">
+                                        {CELESTIAL_ACTIVE_STEPS.map((step, idx) => {
+                                            const isDone = idx < activeStepIdx;
+                                            const isCurrent = idx === activeStepIdx;
+                                            return (
+                                                <span
+                                                    key={step}
+                                                    className={`h-1 rounded-full transition-all duration-500 ${
+                                                        isCurrent
+                                                            ? 'w-7 bg-[#a8e8ff] shadow-[0_0_12px_rgba(168,232,255,0.9)]'
+                                                            : isDone
+                                                            ? 'w-2.5 bg-[#f5dfb0]/80'
+                                                            : 'w-1.5 bg-[#8ab8e6]/30'
+                                                    }`}
+                                                />
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {fallbackMode && (
+                                    <div className={`mt-5 w-24 h-24 rounded-full border border-[#88d4ff]/45 bg-[#09152e]/55 backdrop-blur-md flex items-center justify-center text-[#eef6ff] tracking-[0.22em] text-xs ${isBusy ? 'animate-spin' : ''}`}>
+                                        宇宙星門
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex flex-col items-center gap-3.5">
+                        {phase === "GUIDANCE" ? (
+                            <button
+                                onClick={resetRitual}
+                                className="ritual-btn celestial-btn rounded-full py-3.5 text-sm animate-ink-reveal"
+                            >
+                                再 尋 宇 宙 指 引
+                            </button>
+                        ) : (
+                            <button
+                                onClick={getGuide}
+                                disabled={isBusy}
+                                className="ritual-btn celestial-btn rounded-full py-3.5 text-sm"
+                            >
+                                {isBusy ? '星 門 啟 動 中' : '開 啟 宇 宙 指 引'}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // =====================================================================
+        // 主程式 App — 首頁直接導入三境頁面 (portals) 並支援三大儀式切換
+        // view: 'portals' → ('blocks' | 'cards' | 'guide')
+        // =====================================================================
+        const VALID_VIEWS = ['portals', 'blocks', 'cards', 'guide'];
+
+        const App = () => {
+            const getInitialView = () => {
+                const h = window.location.hash.replace('#', '');
+                return VALID_VIEWS.includes(h) ? h : 'portals';
+            };
+
+            const [view, setView] = useState(getInitialView);
+            const [soundOn, setSoundOn] = useState(false);
+            const [reducedMotion, setReducedMotion] = useState(
+                () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+            );
+
+            // 支援瀏覽器返回上一頁 / Hash 導覽
+            useEffect(() => {
+                const onHashOrPop = () => {
+                    setView(getInitialView());
+                };
+                window.addEventListener('hashchange', onHashOrPop);
+                window.addEventListener('popstate', onHashOrPop);
+                return () => {
+                    window.removeEventListener('hashchange', onHashOrPop);
+                    window.removeEventListener('popstate', onHashOrPop);
+                };
+            }, []);
+
+            const navigateTo = (nextView) => {
+                if (nextView === view) return;
+                const targetHash = nextView === 'portals' ? '' : `#${nextView}`;
+                if (window.location.hash !== targetHash) {
+                    window.history.pushState({ view: nextView }, '', targetHash || window.location.pathname + window.location.search);
+                }
+                setView(nextView);
+            };
+
+            // 同步目前畫面至 3D WebGL 舞台模式
+            useEffect(() => {
+                const syncStage = () => {
+                    if (!window.DivinationStage) return;
+                    const stageMode = ['blocks', 'cards', 'guide'].includes(view) ? view : 'sanctuary';
+                    window.DivinationStage.setMode(stageMode);
+
+                    if (view === 'portals') {
+                        window.DivinationStage.setSceneTone('ethereal');
+                    }
+                };
+                syncStage();
+                window.addEventListener('divination-stage-ready', syncStage);
+                return () => window.removeEventListener('divination-stage-ready', syncStage);
+            }, [view]);
+
+            const handleToggleSound = () => {
+                if (window.DivinationStage && typeof window.DivinationStage.toggleSound === 'function') {
+                    const next = window.DivinationStage.toggleSound();
+                    setSoundOn(next);
+                }
+            };
+
+            const handleToggleMotion = () => {
+                const next = !reducedMotion;
+                setReducedMotion(next);
+                if (window.DivinationStage && typeof window.DivinationStage.setReducedMotion === 'function') {
+                    window.DivinationStage.setReducedMotion(next);
+                }
+            };
+
+            const isRitualView = ['blocks', 'cards', 'guide'].includes(view);
+
+            return (
+                <div className="min-h-[100dvh] w-full flex flex-col relative">
+                    {/* 溫潤琉璃導覽列（支援返回三境入口與切換儀式） */}
+                    <header className="w-full sticky top-0 z-30 sanctuary-header">
+                        <div className="max-w-5xl mx-auto px-3 sm:px-6 h-15 py-2.5 flex items-center justify-between gap-2">
+                            {/* 品牌印記（點擊返回三境入口） */}
+                            <button
+                                onClick={() => navigateTo('portals')}
+                                className="flex items-center gap-2 sm:gap-2.5 shrink-0 text-left outline-none group"
+                                title="返回三境入口選擇"
+                            >
+                                <div className="w-7 h-7 rounded-full border border-[#b89254]/55 flex items-center justify-center text-[11px] text-theme-gold font-serif-tc shrink-0 group-hover:scale-105 transition-transform">
+                                    問
+                                </div>
+                                <div className="leading-tight whitespace-nowrap">
+                                    <span className="block text-xs sm:text-sm font-medium tracking-[0.16em] sm:tracking-[0.24em] text-theme-primary">
+                                        靈感問路站
+                                    </span>
+                                    <span className="font-latin text-[8px] tracking-[0.2em] text-theme-muted uppercase hidden sm:block">
+                                        Luminous Sanctuary
+                                    </span>
+                                </div>
+                            </button>
+
+                            {/* 進入儀式後顯示切換導覽；在三境首頁顯示溫柔副標 */}
+                            {isRitualView ? (
+                                <nav className="flex items-center h-9 gap-0.5 sm:gap-4 shrink-0">
+                                    <button
+                                        onClick={() => navigateTo('portals')}
+                                        className="nav-tab h-full px-1.5 sm:px-2.5 flex items-center gap-1 text-[11px] sm:text-xs tracking-[0.1em] whitespace-nowrap"
+                                    >
+                                        <span className="hidden md:inline-flex"><Icons.Sparkle /></span>
+                                        <span>三境</span>
+                                    </button>
+                                    <button
+                                        onClick={() => navigateTo('blocks')}
+                                        className={`nav-tab h-full px-2 sm:px-3 flex items-center gap-1 text-[11px] sm:text-xs tracking-[0.12em] sm:tracking-[0.2em] whitespace-nowrap ${view === 'blocks' ? 'active' : ''}`}
+                                    >
+                                        <span className="hidden sm:inline-flex"><Icons.Moon /></span>
+                                        <span>擲筊</span>
+                                    </button>
+                                    <button
+                                        onClick={() => navigateTo('cards')}
+                                        className={`nav-tab h-full px-2 sm:px-3 flex items-center gap-1 text-[11px] sm:text-xs tracking-[0.12em] sm:tracking-[0.2em] whitespace-nowrap ${view === 'cards' ? 'active' : ''}`}
+                                    >
+                                        <span className="hidden sm:inline-flex"><Icons.Cards /></span>
+                                        <span>三元牌</span>
+                                    </button>
+                                    <button
+                                        onClick={() => navigateTo('guide')}
+                                        className={`nav-tab h-full px-1.5 sm:px-3 flex items-center gap-1 text-[11px] sm:text-xs tracking-[0.08em] sm:tracking-[0.2em] whitespace-nowrap ${view === 'guide' ? 'active' : ''}`}
+                                    >
+                                        <span className="hidden sm:inline-flex"><Icons.Compass /></span>
+                                        <span>宇宙指引</span>
+                                    </button>
+                                </nav>
+                            ) : (
+                                <div className="flex items-center gap-2 text-[11px] tracking-[0.24em] text-theme-gold font-normal">
+                                    <span>三境擇引</span>
+                                </div>
+                            )}
+
+                            {/* 右側音效與動效微控制 */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                    onClick={handleToggleSound}
+                                    title={soundOn ? '關閉儀式音效' : '開啟儀式音效'}
+                                    className={`p-2 rounded-full border transition-colors ${
+                                        soundOn
+                                            ? 'border-[#b89254]/65 text-theme-gold bg-[#b89254]/14'
+                                            : 'border-[#b89254]/22 text-theme-secondary hover:text-theme-primary'
+                                    }`}
+                                >
+                                    {soundOn ? <Icons.VolumeOn /> : <Icons.VolumeOff />}
+                                </button>
+                                <button
+                                    onClick={handleToggleMotion}
+                                    title={reducedMotion ? '切換標準動態' : '切換靜謐簡約動態'}
+                                    className={`hidden sm:inline-flex px-2.5 py-1 rounded-full border text-[10px] tracking-[0.16em] transition-colors ${
+                                        reducedMotion
+                                            ? 'border-[#b89254]/65 text-theme-gold bg-[#b89254]/14'
+                                            : 'border-[#b89254]/22 text-theme-secondary hover:text-theme-primary'
+                                    }`}
+                                >
+                                    {reducedMotion ? '靜謐' : '動效'}
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* 主儀式舞台 */}
+                    <main className="flex-1 flex flex-col w-full">
+                        {view === 'portals' && (
+                            <PortalGateway
+                                onSelectPortal={(portalId) => {
+                                    if (window.DivinationStage) window.DivinationStage.playChime('chime');
+                                    navigateTo(portalId);
+                                }}
+                            />
+                        )}
+                        {view === 'blocks' && <MoonBlocks />}
+                        {view === 'cards' && <TriadCards />}
+                        {view === 'guide' && <RandomGuide />}
+                    </main>
+
+                    {/* 底部低調安定落款 */}
+                    <footer className="w-full text-center py-3.5 text-[11px] tracking-[0.32em] text-theme-muted">
+                        <p>心誠則靈 · 願光與平靜陪你同行</p>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
