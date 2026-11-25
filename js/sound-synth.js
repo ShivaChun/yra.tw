@@ -157,30 +157,56 @@ class RitualSoundSynth {
   }
 
   /**
-   * 宇宙封印機關圓環咬合定位與中央六瓣玉鎖退栓聲
+   * 巨型古老天體封印甦醒時的深沉低頻古銅共鳴（營造莊嚴神祕的空間重量感）
+   */
+  playAncientResonance() {
+    const ctx = this._ensureContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    [110.0, 164.81, 220.0].forEach((f, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = idx === 0 ? 'sine' : 'triangle';
+      osc.frequency.setValueAtTime(f * 0.99, now);
+      osc.frequency.linearRampToValueAtTime(f, now + 1.6);
+
+      const peak = idx === 0 ? 0.085 : idx === 1 ? 0.042 : 0.022;
+      gain.gain.setValueAtTime(0.0004, now);
+      gain.gain.linearRampToValueAtTime(peak, now + 0.65);
+      gain.gain.exponentialRampToValueAtTime(0.0004, now + 2.8);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 2.9);
+    });
+  }
+
+  /**
+   * 宇宙封印機關沉重古銅卡榫咬合定位聲
    */
   playMechanismLock() {
     const ctx = this._ensureContext();
     if (!ctx) return;
 
     const now = ctx.currentTime;
-    // 雙擊精密金屬卡榫定位聲 + 低頻共鳴
-    [0, 0.11].forEach((offset, i) => {
+    [0, 0.14].forEach((offset, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'triangle';
-      const base = i === 0 ? 420 : 640;
-      osc.frequency.setValueAtTime(base * 1.6, now + offset);
-      osc.frequency.exponentialRampToValueAtTime(base * 0.55, now + offset + 0.08);
+      const base = i === 0 ? 195 : 290;
+      osc.frequency.setValueAtTime(base * 1.45, now + offset);
+      osc.frequency.exponentialRampToValueAtTime(base * 0.48, now + offset + 0.14);
 
       gain.gain.setValueAtTime(0.001, now + offset);
-      gain.gain.linearRampToValueAtTime(0.16, now + offset + 0.005);
-      gain.gain.exponentialRampToValueAtTime(0.0006, now + offset + 0.12);
+      gain.gain.linearRampToValueAtTime(0.18, now + offset + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0006, now + offset + 0.22);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now + offset);
-      osc.stop(now + offset + 0.14);
+      osc.stop(now + offset + 0.24);
     });
   }
 

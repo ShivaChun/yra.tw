@@ -600,11 +600,12 @@ class DivinationStageManager {
     const timeScale = this.reducedMotion ? 0.3 : 1.0;
     this.totalTime += dt * timeScale;
 
-    // 平滑推進明暗雙場景曲線（使明暗轉換本身成為流動天光動畫）
+    // 平滑推進明暗雙場景曲線（放慢至深邃悠長的日蝕／破曉呼吸感，襯托古老機關神祕氛圍）
+    const lumSpeed = this.targetLuminescence < this.currentLuminescence ? 1.15 : 1.45;
     this.currentLuminescence = THREE.MathUtils.lerp(
       this.currentLuminescence,
       this.targetLuminescence,
-      Math.min(1, dt * 2.2)
+      Math.min(1, dt * lumSpeed)
     );
     const lum = this.currentLuminescence;
 

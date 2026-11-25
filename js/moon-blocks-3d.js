@@ -220,44 +220,43 @@ function createAltarInlayTexture() {
 }
 
 /**
- * 程式化建構台灣傳統木製月牙形 3D 筊杯 Mesh Group
+ * 程式化建構台灣傳統木製半月形 3D 筊杯 Mesh Group（對標實拍木筊：中段飽滿厚實、兩端圓鈍溫潤不尖刺）
  * 局部座標：
- *   +Y 凸面（深潤亮面朱紅漆背脊 / 陰面 / 0），具圓潤背稜高光
- *   -Y 平面（霧面淺朱紅木紋平面 / 陽面 / 1），具圓潤邊緣倒角
- *   +Z 飽滿外半月弧，-Z 自然微凹內弦與兩端收尖圓角，X ∈ [-1.06, +1.06] 左右對稱
+ *   +Y 凸面（深潤亮面朱紅漆背脊 / 陰面 / 0）
+ *   -Y 平面（霧面淺朱紅木紋平面 / 陽面 / 1）
+ *   +Z 飽滿外半月圓弧，-Z 平緩微凹內弦，X ∈ [-0.94, +0.94] 兩端採極座標橢圓圓鈍收頭
  */
 function createMoonBlockMesh(lacquerMat, flatWoodMat) {
   const group = new THREE.Group();
 
-  const uSegs = 48;
+  const uSegs = 52;
   const vSegs = 26;
-  const lengthHalf = 1.06;
-  const maxHeight = 0.43;
+  const lengthHalf = 0.94;
+  const maxHeight = 0.44;
+  const localYShift = -0.14;
 
-  const evalPoint = (u, v, isTop) => {
-    const uClamped = Math.max(-0.999, Math.min(0.999, u));
-    const oneMinusU2 = Math.max(0, 1 - uClamped * uClamped);
-    // 兩端呈現自然收尖但圓潤不刺手的木製月牙尖角
-    const x = u * lengthHalf;
+  // 使用正弦極角參數 theta ∈ [-π/2, +π/2]，使兩端 x = ±lengthHalf 自然形成圓弧鈍角端頭而非尖刺
+  const evalByTheta = (theta, v, isTop) => {
+    const sinT = Math.sin(theta);
+    const cosT = Math.max(0, Math.cos(theta));
+    const x = lengthHalf * sinT;
 
-    // 內弦微凹、外腹飽滿的自然半月形輪廓（對標傳統木筊比例，絕非拱門或馬蹄形）
-    const zTip = -0.24;
-    const zInner = zTip + 0.13 * Math.pow(oneMinusU2, 0.85);
-    const zOuter = zTip + 0.78 * Math.pow(oneMinusU2, 0.58);
+    const zTip = -0.26;
+    // 內弦平緩微凹，外弧飽滿渾圓，兩端保留圓鈍木頭鼻端寬度
+    const zInner = zTip + 0.08 * (cosT * cosT);
+    const zOuter = zTip + 0.065 * Math.pow(cosT, 0.30) + 0.735 * Math.pow(cosT, 0.84);
     const v01 = (v + 1) * 0.5;
     const z = zInner + v01 * (zOuter - zInner);
 
-    const taper = Math.pow(oneMinusU2, 0.55);
+    const taper = Math.pow(cosT, 0.50);
     let y = 0;
     if (isTop) {
       const domeProfile = Math.cos(v * Math.PI * 0.5);
-      // 傳統木筊特有的圓潤背脊微稜曲線與飽滿邊緣倒角
-      const ridgeCrest = 1.0 + 0.09 * Math.exp(-v * v * 6.5);
-      y = maxHeight * taper * Math.pow(Math.max(0, domeProfile), 0.72) * ridgeCrest;
+      const ridgeCrest = 1.0 + 0.08 * Math.exp(-v * v * 6.0);
+      y = maxHeight * taper * Math.pow(Math.max(0, domeProfile), 0.70) * ridgeCrest;
     } else {
-      // 平面微帶圓潤收邊倒角
-      const edgeRound = Math.pow(Math.max(0, Math.cos(v * Math.PI * 0.5)), 0.25);
-      y = -0.010 * taper * edgeRound;
+      const edgeRound = Math.pow(Math.max(0, Math.cos(v * Math.PI * 0.5)), 0.22);
+      y = -0.008 * taper * edgeRound;
     }
     return [x, y, z];
   };
@@ -269,11 +268,11 @@ function createMoonBlockMesh(lacquerMat, flatWoodMat) {
 
     for (let iu = 0; iu <= uSegs; iu++) {
       const uNorm = iu / uSegs;
-      const u = uNorm * 2 - 1;
+      const theta = (uNorm - 0.5) * Math.PI;
       for (let iv = 0; iv <= vSegs; iv++) {
         const vNorm = iv / vSegs;
         const v = vNorm * 2 - 1;
-        const [x, y, z] = evalPoint(u, v, isTop);
+        const [x, y, z] = evalByTheta(theta, v, isTop);
         positions.push(x, y, z);
         uvs.push(uNorm, vNorm);
       }
@@ -310,11 +309,27 @@ function createMoonBlockMesh(lacquerMat, flatWoodMat) {
   bottomMesh.castShadow = true;
   bottomMesh.receiveShadow = true;
 
-  topMesh.position.y = -0.14;
-  bottomMesh.position.y = -0.14;
+  topMesh.position.y = localYShift;
+  bottomMesh.position.y = localYShift;
 
   group.add(topMesh);
   group.add(bottomMesh);
+
+  // 預先取樣 3D 凸包特徵頂點，供物理引擎精確計算任意旋轉姿態下的最低觸地點（100% 杜絕沉入地面）
+  const hullPoints = [];
+  const sampleThetas = [-1.52, -1.25, -0.85, -0.42, 0, 0.42, 0.85, 1.25, 1.52];
+  const sampleVs = [-1, -0.5, 0, 0.5, 1];
+  sampleThetas.forEach((th) => {
+    sampleVs.forEach((vv) => {
+      const [tx, ty, tz] = evalByTheta(th, vv, true);
+      hullPoints.push(new THREE.Vector3(tx, ty + localYShift, tz));
+      if (vv === -1 || vv === 0 || vv === 1) {
+        const [bx, by, bz] = evalByTheta(th, vv, false);
+        hullPoints.push(new THREE.Vector3(bx, by + localYShift, bz));
+      }
+    });
+  });
+  group.userData.hullPoints = hullPoints;
 
   return group;
 }
@@ -687,17 +702,41 @@ export class MoonBlocksScene {
       b.startQuat.copy(b.mesh.quaternion);
       b.targetFace = idx === 0 ? b1 : b2;
       b.targetYaw = (idx === 0 ? -0.48 : 0.52) + (Math.random() - 0.5) * 1.15;
-      b.targetTilt = b.targetFace === 1 ? (Math.random() > 0.5 ? 0.13 : -0.13) : 0;
-      b.restY = b.targetFace === 1 ? 0.28 : 0.15;
+      b.targetTilt = b.targetFace === 1 ? (Math.random() > 0.5 ? 0.11 : -0.11) : 0;
       b.targetQuat.setFromEuler(
         new THREE.Euler(b.targetFace === 1 ? Math.PI : 0, b.targetYaw, b.targetTilt, 'YXZ')
       );
+      // 依據目標姿態之實際 3D 表面最低點精確計算靜止高度，確保貼合石壇表面 Y=0.008 絕不下陷
+      const restContact = this._computeLowestContact(b.mesh, b.targetQuat);
+      b.restY = 0.008 - restContact.minY;
       b.bounces = 0;
       b.settled = false;
     });
     this.claspSoundPlayed = false;
 
     this._setPhase(BLOCK_PHASES.PREPARING);
+  }
+
+  /**
+   * 精確計算筊杯在指定旋轉四元數下，相對於中心點的最低表面頂點高度與接觸力臂向量
+   */
+  _computeLowestContact(meshGroup, quat) {
+    const hull = meshGroup.userData.hullPoints;
+    if (!hull || hull.length === 0) {
+      return { minY: -0.15, offset: new THREE.Vector3(0, -0.15, 0) };
+    }
+    if (!this._tmpHullVec) this._tmpHullVec = new THREE.Vector3();
+    let minY = Infinity;
+    const minOffset = new THREE.Vector3();
+
+    for (let i = 0; i < hull.length; i++) {
+      this._tmpHullVec.copy(hull[i]).applyQuaternion(quat);
+      if (this._tmpHullVec.y < minY) {
+        minY = this._tmpHullVec.y;
+        minOffset.copy(this._tmpHullVec);
+      }
+    }
+    return { minY, offset: minOffset };
   }
 
   /**
@@ -936,11 +975,12 @@ export class MoonBlocksScene {
       return;
     }
 
-    // 3. THROWING & 4. COLLISION：剛體拋擲、重力加速度、石壇碰撞反彈與雙筊互撞
+    // 3. THROWING & 4. COLLISION：真實凸包觸地檢測剛體物理（任意角度絕不沉入石壇表面）
     if (this.phase === BLOCK_PHASES.THROWING || this.phase === BLOCK_PHASES.COLLISION) {
       this.simTime += safeDt;
-      const gravity = -16.4;
-      const subSteps = 3;
+      const gravity = -16.8;
+      const altarSurfaceY = 0.008;
+      const subSteps = 5;
       const stepDt = safeDt / subSteps;
       let anyBounced = false;
 
@@ -949,7 +989,7 @@ export class MoonBlocksScene {
           b.vel.y += gravity * stepDt;
           b.pos.addScaledVector(b.vel, stepDt);
 
-          // 祭壇邊界圓約束（收束於 1.18 確保手機直屏 390px 雙筊尖端皆完整落在視野內）
+          // 祭壇邊界圓約束
           const radialDist = Math.hypot(b.pos.x, b.pos.z);
           if (radialDist > 1.18) {
             const nx = b.pos.x / radialDist;
@@ -968,47 +1008,67 @@ export class MoonBlocksScene {
             b.mesh.quaternion.premultiply(dq).normalize();
           }
 
-          // 石壇碰撞與反彈
-          const floorY = b.bounces >= 2 ? b.restY : 0.22;
-          if (b.pos.y <= floorY) {
-            b.pos.y = floorY;
-            const impactSpeed = Math.abs(b.vel.y);
-            if (impactSpeed > 0.36) {
+          // 觸地反彈後平滑引導收斂至真實目標朝向（先更新旋轉再執行嚴格不穿模投影）
+          if (b.bounces >= 1) {
+            const guideStrength = b.bounces >= 2 ? 7.6 : 2.8;
+            b.mesh.quaternion.slerp(b.targetQuat, Math.min(1, stepDt * guideStrength));
+            b.angVel.multiplyScalar(Math.pow(0.22, stepDt));
+          }
+
+          // 真實 3D 凸包最低點觸地檢測與力矩反彈（100% 消除端角或邊緣沉入地面的失真現象）
+          const contact = this._computeLowestContact(b.mesh, b.mesh.quaternion);
+          const lowestWorldY = b.pos.y + contact.minY;
+
+          if (lowestWorldY <= altarSurfaceY) {
+            // 立即將剛體向上投影，使最低木頭邊緣精準貼於石壇表面之上
+            b.pos.y = altarSurfaceY - contact.minY;
+
+            // 計算實際觸地點之瞬時速度 v_contact = v + ω × r
+            const rotVelAtContact = new THREE.Vector3().crossVectors(b.angVel, contact.offset);
+            const contactVelY = b.vel.y + rotVelAtContact.y;
+
+            if (contactVelY < -0.32) {
+              const impactSpeed = -contactVelY;
               b.bounces++;
               anyBounced = true;
-              // 陽面（弧背著地）彈性略活潑，陰面（平面著地）更沉實俐落
-              const faceRestitutionBonus = b.targetFace === 1 ? 0.04 : -0.02;
-              const restitution = Math.max(0.18, 0.49 + faceRestitutionBonus - b.bounces * 0.085);
-              b.vel.y = impactSpeed * restitution;
-              b.vel.x *= 0.73;
-              b.vel.z *= 0.73;
-              b.angVel.multiplyScalar(0.66);
-              b.angVel.y += (Math.random() - 0.5) * impactSpeed * 0.52;
 
-              if (s === 0) {
-                const intensity = Math.min(1, impactSpeed / 7.2);
+              const faceRestitutionBonus = b.targetFace === 1 ? 0.04 : -0.02;
+              const restitution = Math.max(0.16, 0.46 + faceRestitutionBonus - b.bounces * 0.09);
+
+              // 線速度反彈與桌面摩擦
+              b.vel.y = Math.max(b.vel.y, impactSpeed * restitution);
+              b.vel.x *= 0.74;
+              b.vel.z *= 0.74;
+
+              // 端角先著地時產生自然的槓桿翻轉力矩 (r × J_n)，讓木筊真實彈跳翻落而非僵硬平移
+              const leverTorque = new THREE.Vector3(
+                contact.offset.z * impactSpeed * 0.85,
+                (Math.random() - 0.5) * impactSpeed * 0.45,
+                -contact.offset.x * impactSpeed * 0.85
+              );
+              b.angVel.multiplyScalar(0.58).add(leverTorque);
+
+              const hitX = b.pos.x + contact.offset.x;
+              const hitZ = b.pos.z + contact.offset.z;
+              const intensity = Math.min(1, impactSpeed / 7.5);
+
+              if (b.bounces <= 4 && (!b._lastKnockTime || this.simTime - b._lastKnockTime > 0.075)) {
+                b._lastKnockTime = this.simTime;
                 ritualSound.playWoodKnock(intensity, idx * 78);
-                this._spawnRipple(b.pos.x, b.pos.z, intensity);
-                if (b.bounces <= 2 && intensity > 0.28) {
-                  this._spawnImpactMotes(b.pos.x, 0.05, b.pos.z, intensity);
+                this._spawnRipple(hitX, hitZ, intensity);
+                if (b.bounces <= 2 && intensity > 0.26) {
+                  this._spawnImpactMotes(hitX, 0.04, hitZ, intensity);
                 }
                 if (b.bounces === 1 && impactSpeed > 2.3 && typeof this.onImpactCallback === 'function') {
-                  this.onImpactCallback(Math.min(0.062, intensity * 0.062));
+                  this.onImpactCallback(Math.min(0.058, intensity * 0.058));
                 }
               }
             } else {
-              b.vel.y = 0;
+              if (b.vel.y < 0) b.vel.y = 0;
               b.vel.x *= 0.84;
               b.vel.z *= 0.84;
-              b.angVel.multiplyScalar(0.8);
+              b.angVel.multiplyScalar(0.78);
             }
-          }
-
-          // 觸地反彈後平滑引導收斂至真實目標朝向
-          if (b.bounces >= 1) {
-            const guideStrength = b.bounces >= 2 ? 7.8 : 2.8;
-            b.mesh.quaternion.slerp(b.targetQuat, Math.min(1, stepDt * guideStrength));
-            b.angVel.multiplyScalar(Math.pow(0.2, stepDt));
           }
 
           b.mesh.position.copy(b.pos);
@@ -1018,8 +1078,9 @@ export class MoonBlocksScene {
         const b0 = this.blocks[0];
         const b1 = this.blocks[1];
         const diff = new THREE.Vector3().subVectors(b1.pos, b0.pos);
+        diff.y = 0; // 水平面排斥，避免把另一枚往下壓入地面
         const dist = diff.length();
-        const minSep = 1.32;
+        const minSep = 1.28;
         if (dist > 0.001 && dist < minSep) {
           const overlap = (minSep - dist) * 0.5;
           const normal = diff.divideScalar(dist);
@@ -1037,7 +1098,7 @@ export class MoonBlocksScene {
               ritualSound.playWoodKnock(hit, 145);
               this._spawnImpactMotes(
                 (b0.pos.x + b1.pos.x) * 0.5,
-                (b0.pos.y + b1.pos.y) * 0.5,
+                Math.max(0.08, (b0.pos.y + b1.pos.y) * 0.5),
                 (b0.pos.z + b1.pos.z) * 0.5,
                 hit * 0.7
               );
@@ -1050,42 +1111,52 @@ export class MoonBlocksScene {
         this._setPhase(BLOCK_PHASES.COLLISION);
       }
 
-      const bothLowEnergy = this.blocks.every(
-        (b) => b.bounces >= 2 && b.vel.length() < 0.42 && b.pos.y <= b.restY + 0.08
-      );
-      if ((this.phase === BLOCK_PHASES.COLLISION && bothLowEnergy && this.phaseTime > 0.62) || this.simTime > 2.2) {
+      const bothLowEnergy = this.blocks.every((b) => {
+        const c = this._computeLowestContact(b.mesh, b.mesh.quaternion);
+        return b.bounces >= 2 && b.vel.length() < 0.42 && b.pos.y + c.minY <= altarSurfaceY + 0.05;
+      });
+      if ((this.phase === BLOCK_PHASES.COLLISION && bothLowEnergy && this.phaseTime > 0.62) || this.simTime > 2.3) {
         this._setPhase(BLOCK_PHASES.SETTLING);
       }
       return;
     }
 
-    // 5. SETTLING（0.62s）：陽面圓弧背著地時呈現真實微幅前後搖晃阻尼，陰面平面著地則沉穩落定
+    // 5. SETTLING（0.65s）：陽面圓弧背著地時沿石壇表面真實滾動搖擺（絕不穿模沉入地面），陰面平面著地沉穩落定
     if (this.phase === BLOCK_PHASES.SETTLING) {
-      const dur = this.reducedMotion ? 0.25 : 0.62;
+      const dur = this.reducedMotion ? 0.25 : 0.65;
       const p = Math.min(1, this.phaseTime / dur);
+      const altarSurfaceY = 0.008;
 
       this.blocks.forEach((b) => {
         b.vel.multiplyScalar(Math.pow(0.04, safeDt));
         b.pos.x += b.vel.x * safeDt;
         b.pos.z += b.vel.z * safeDt;
-        b.pos.y = THREE.MathUtils.lerp(b.pos.y, b.restY, Math.min(1, safeDt * 11));
-        b.mesh.position.copy(b.pos);
 
         if (b.targetFace === 1 && !this.reducedMotion) {
-          // 陽面（圓弧凸背接觸石壇）特有的輕微搖擺止定細節
-          const decay = Math.exp(-p * 4.2) * (1 - p);
-          const rockAngle = Math.sin(this.phaseTime * 21.0 + b.rockPhase) * 0.14 * decay;
+          const decay = Math.exp(-p * 4.0) * (1 - p);
+          const rockAngle = Math.sin(this.phaseTime * 19.0 + b.rockPhase) * 0.13 * decay;
           const rockQuat = new THREE.Quaternion().setFromEuler(
-            new THREE.Euler(Math.PI + rockAngle, b.targetYaw, b.targetTilt + rockAngle * 0.45, 'YXZ')
+            new THREE.Euler(Math.PI + rockAngle, b.targetYaw, b.targetTilt + rockAngle * 0.4, 'YXZ')
           );
           b.mesh.quaternion.slerp(rockQuat, Math.min(1, safeDt * 14));
         } else {
           b.mesh.quaternion.slerp(b.targetQuat, Math.min(1, safeDt * 12));
         }
+
+        // 即時依據當下搖擺四元數貼合石壇表面高度，使圓弧凸背真實滾動於石面之上
+        const curContact = this._computeLowestContact(b.mesh, b.mesh.quaternion);
+        const exactRestY = altarSurfaceY - curContact.minY;
+        b.pos.y = Math.max(exactRestY, THREE.MathUtils.lerp(b.pos.y, exactRestY, Math.min(1, safeDt * 14)));
+        b.mesh.position.copy(b.pos);
       });
 
       if (p >= 1) {
-        this.blocks.forEach((b) => b.mesh.quaternion.copy(b.targetQuat));
+        this.blocks.forEach((b) => {
+          b.mesh.quaternion.copy(b.targetQuat);
+          const finalContact = this._computeLowestContact(b.mesh, b.targetQuat);
+          b.pos.y = altarSurfaceY - finalContact.minY;
+          b.mesh.position.copy(b.pos);
+        });
         this._enterReveal();
       }
       return;

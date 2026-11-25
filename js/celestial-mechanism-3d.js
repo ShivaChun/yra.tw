@@ -33,7 +33,7 @@ const CN_NUMS = [
 
 export function formatOracleIndex(num) {
   const cn = CN_NUMS[(num - 1) % CN_NUMS.length] || String(num);
-  return `天 機 · 第 ${cn} 籤`;
+  return `宇 宙 指 引 · ${cn}`;
 }
 
 /**
@@ -753,7 +753,7 @@ export class CelestialMechanismScene {
     const mat = new THREE.MeshBasicMaterial({
       color: colorHex,
       transparent: true,
-      opacity: 0.56,
+      opacity: 0.52,
       side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending,
       depthWrite: false
@@ -761,7 +761,7 @@ export class CelestialMechanismScene {
     const wave = new THREE.Mesh(geom, mat);
     wave.position.copy(this.mechanismRoot.position);
     this.group.add(wave);
-    this.waves.push({ mesh: wave, age: 0, maxAge: 1.28, maxScale });
+    this.waves.push({ mesh: wave, age: 0, maxAge: 2.15, maxScale });
   }
 
   _setPhase(nextPhase) {
@@ -806,8 +806,12 @@ export class CelestialMechanismScene {
     this.alignLockPlayed = false;
     this.orbitLockPlayed = false;
     this.sealLockPlayed = false;
+    this.litStudCount = 0;
 
-    this.outerRingStartAngle = this.outerRingGroup.rotation.z;
+    // 從較大沉睡偏移角甦醒，展現巨型古老星盤沉穩長程對位感
+    this.outerRingGroup.rotation.z = -0.78;
+    this.outerRingStartAngle = -0.78;
+    ritualSound.playAncientResonance();
     this._setPhase(CELESTIAL_PHASES.ALIGNMENT);
   }
 
@@ -923,24 +927,34 @@ export class CelestialMechanismScene {
       return;
     }
 
-    // 2. ALIGNMENT（1.08s）：
-    //    因果第一步 — 外圍主環（定位結構）甦醒點亮十二星宿蝕刻符文，沉穩旋轉對準四方基準指針並鎖定停止！
+    // 2. ALIGNMENT（2.45s）：
+    //    巨型古老外環先於深空微光中緩緩甦醒克服靜摩擦，隨後帶著沉重質量感緩慢旋轉對位，並留出靜謐屏息停頓
     if (this.phase === CELESTIAL_PHASES.ALIGNMENT) {
-      const dur = this.reducedMotion ? 0.42 : 1.08;
+      const dur = this.reducedMotion ? 0.68 : 2.45;
       const p = Math.min(1, this.phaseTime / dur);
-      // 具金屬慣性的平滑啟停曲線
-      const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
 
-      this.outerRingGroup.rotation.z = THREE.MathUtils.lerp(this.outerRingStartAngle, 0, ease);
-      this.outerFaceMat.emissiveIntensity = THREE.MathUtils.lerp(0.04, 0.92, ease);
+      // 0.00 ~ 0.16：古老符文自幽暗中緩慢浮現微光；0.14 ~ 0.88：沉重外環緩慢加速再重錘減速定位；0.88 ~ 1.00：定位後靜默屏息
+      const runeGlowP = Math.min(1, p / 0.45);
+      this.outerFaceMat.emissiveIntensity = THREE.MathUtils.lerp(0.12, 0.96, runeGlowP * runeGlowP);
 
-      if (p >= 0.90 && !this.alignLockPlayed) {
+      const moveP = Math.max(0, Math.min(1, (p - 0.14) / 0.74));
+      // 具龐大轉動慣量的高階緩動曲線（起步極沉、中段穩重、收尾沉穩咬合）
+      const heavyEase =
+        moveP < 0.5
+          ? 8 * moveP * moveP * moveP * moveP
+          : 1 - Math.pow(-2 * moveP + 2, 4) / 2;
+
+      this.outerRingGroup.rotation.z = THREE.MathUtils.lerp(this.outerRingStartAngle, 0, heavyEase);
+
+      if (p >= 0.87 && !this.alignLockPlayed) {
         this.alignLockPlayed = true;
         ritualSound.playMechanismLock();
+        if (typeof this.onImpactCallback === 'function') {
+          this.onImpactCallback(0.022);
+        }
       }
 
       if (p >= 1) {
-        // 外環精準鎖定於 0.000 rad，後續階段保持定位不動
         this.outerRingGroup.rotation.z = 0;
         this.orbitStartQuat1 = this.primaryOrbitGimbal.quaternion.clone();
         this.orbitStartQuat2 = this.secondaryOrbitGimbal.quaternion.clone();
@@ -950,29 +964,32 @@ export class CelestialMechanismScene {
       return;
     }
 
-    // 3. ORBIT_ROTATION（1.28s）：
-    //    因果第二步 — 外環定位完成後釋放雙天體軌道（旋轉結構），兩組軌道以不同傾角與方向交錯運行並對位停穩！
+    // 3. ORBIT_ROTATION（2.75s）：
+    //    外環沉重咬合後釋放雙層大型天體軌道，以莊嚴緩慢的角動量交錯巡行，對位後靜默停駐
     if (this.phase === CELESTIAL_PHASES.ORBIT_ROTATION) {
-      const dur = this.reducedMotion ? 0.48 : 1.28;
+      const dur = this.reducedMotion ? 0.75 : 2.75;
       const p = Math.min(1, this.phaseTime / dur);
 
-      if (p < 0.68) {
-        const spinEnv = Math.sin((p / 0.68) * Math.PI);
-        this.primaryOrbitGimbal.rotation.y += safeDt * (0.8 + spinEnv * 3.2);
-        this.primaryOrbitGimbal.rotation.z += safeDt * (0.4 + spinEnv * 1.4);
-        this.secondaryOrbitGimbal.rotation.x -= safeDt * (0.9 + spinEnv * 3.5);
-        this.secondaryOrbitGimbal.rotation.y -= safeDt * (0.5 + spinEnv * 1.6);
+      if (p < 0.66) {
+        const spinEnv = Math.sin((p / 0.66) * Math.PI);
+        // 降低轉速，呈現巨型青銅渾天儀在深空緩慢運行的神祕壓迫與莊嚴感
+        this.primaryOrbitGimbal.rotation.y += safeDt * (0.28 + spinEnv * 1.45);
+        this.primaryOrbitGimbal.rotation.z += safeDt * (0.14 + spinEnv * 0.62);
+        this.secondaryOrbitGimbal.rotation.x -= safeDt * (0.32 + spinEnv * 1.62);
+        this.secondaryOrbitGimbal.rotation.y -= safeDt * (0.18 + spinEnv * 0.72);
         this.orbitLockStart1 = this.primaryOrbitGimbal.quaternion.clone();
         this.orbitLockStart2 = this.secondaryOrbitGimbal.quaternion.clone();
-      } else {
-        // 後半程平順減速對位至和諧傾角並鎖定
-        const alignP = (p - 0.68) / 0.32;
+      } else if (p < 0.91) {
+        const alignP = (p - 0.66) / 0.25;
         const alignEase = 1 - Math.pow(1 - alignP, 3);
         this.primaryOrbitGimbal.quaternion.copy(this.orbitLockStart1).slerp(this.primaryOrbitAlignQuat, alignEase);
         this.secondaryOrbitGimbal.quaternion.copy(this.orbitLockStart2).slerp(this.secondaryOrbitAlignQuat, alignEase);
+      } else {
+        this.primaryOrbitGimbal.quaternion.copy(this.primaryOrbitAlignQuat);
+        this.secondaryOrbitGimbal.quaternion.copy(this.secondaryOrbitAlignQuat);
       }
 
-      if (p >= 0.92 && !this.orbitLockPlayed) {
+      if (p >= 0.89 && !this.orbitLockPlayed) {
         this.orbitLockPlayed = true;
         ritualSound.playMechanismLock();
       }
@@ -985,34 +1002,37 @@ export class CelestialMechanismScene {
       return;
     }
 
-    // 4. SEAL_LOCKING（0.96s）：
-    //    因果第三步 — 軌道對位完成後傳導至中央封印（鎖定結構），星盤旋正 60° 且六段同心金弧向內收束咬合鎖定！
+    // 4. SEAL_LOCKING（2.10s）：
+    //    中央神祕星晷刻盤緩緩旋正，六枚星釘依序甦醒，六段金弧沉穩向內收束咬合鎖定
     if (this.phase === CELESTIAL_PHASES.SEAL_LOCKING) {
-      const dur = this.reducedMotion ? 0.38 : 0.96;
+      const dur = this.reducedMotion ? 0.62 : 2.10;
       const p = Math.min(1, this.phaseTime / dur);
-      const ease = 1 - Math.pow(1 - p, 3);
+      const lockP = Math.min(1, p / 0.88);
+      const ease = lockP < 0.5 ? 4 * lockP * lockP * lockP : 1 - Math.pow(-2 * lockP + 2, 3) / 2;
 
-      // 外環與天體軌道皆維持鎖定靜止，視覺完全聚焦於中央封印收束
       this.sealDiscMesh.rotation.z = ease * (Math.PI / 3);
       this.sealArcRingGroup.rotation.z = THREE.MathUtils.lerp(Math.PI / 6, 0, ease);
 
-      // 六段圓弧由外 (0.06) 向中心收束至 0.00，密合成一道完整連續金環
       this.sealArcs.forEach((sa) => {
-        sa.arcMesh.position.x = THREE.MathUtils.lerp(0.06, 0.0, ease);
+        sa.arcMesh.position.x = THREE.MathUtils.lerp(0.068, 0.0, ease);
       });
-      this.sealArcMat.emissiveIntensity = THREE.MathUtils.lerp(0.08, 0.72, ease);
+      this.sealArcMat.emissiveIntensity = THREE.MathUtils.lerp(0.08, 0.82, ease);
 
-      // 六枚四角星鑲釘依序點亮定位
-      const litCount = Math.floor(p * 6.5);
+      // 六枚四角星鑲釘伴隨清透泛音依序緩緩亮起
+      const targetStuds = Math.min(6, Math.floor(lockP * 6.8));
+      while ((this.litStudCount || 0) < targetStuds) {
+        ritualSound.playRuneIgnite(this.litStudCount * 2);
+        this.litStudCount = (this.litStudCount || 0) + 1;
+      }
+
       this.starStuds.forEach((st, idx) => {
-        const targetEm = idx <= litCount ? 0.95 : 0.08;
-        st.mat.emissiveIntensity = THREE.MathUtils.lerp(st.mat.emissiveIntensity, targetEm, safeDt * 14);
+        const targetEm = idx < (this.litStudCount || 0) ? 1.05 : 0.08;
+        st.mat.emissiveIntensity = THREE.MathUtils.lerp(st.mat.emissiveIntensity, targetEm, safeDt * 8);
       });
 
-      if (p >= 0.88 && !this.sealLockPlayed) {
+      if (p >= 0.87 && !this.sealLockPlayed) {
         this.sealLockPlayed = true;
         ritualSound.playMechanismLock();
-        ritualSound.playRuneIgnite(5);
       }
 
       if (p >= 1) {
@@ -1021,51 +1041,52 @@ export class CelestialMechanismScene {
       return;
     }
 
-    // 5. ENERGY_ACTIVATION（0.92s）：
-    //    因果第四步 — 全部機械環件保持靜謐鎖定，能量沿中央 36 道放射刻線向透光核心匯聚蓄滿！
+    // 5. ENERGY_ACTIVATION（1.90s）：
+    //    萬籟俱寂的古老儀式靜默中，星芒能量如深海呼吸般緩慢注入透光琉璃星核
     if (this.phase === CELESTIAL_PHASES.ENERGY_ACTIVATION) {
-      const dur = this.reducedMotion ? 0.35 : 0.92;
+      const dur = this.reducedMotion ? 0.55 : 1.90;
       const p = Math.min(1, this.phaseTime / dur);
       const ease = p * p * (3 - 2 * p);
+      const pulse = 1.0 + 0.08 * Math.sin(p * Math.PI * 3);
 
       this.sealDiscMat.opacity = THREE.MathUtils.lerp(0.72, 1.0, ease);
-      this.innerStarMesh.rotation.z += safeDt * (1.2 + ease * 3.8);
+      this.innerStarMesh.rotation.z += safeDt * (0.45 + ease * 1.65);
 
-      const seedScale = 1 + ease * 0.42;
+      const seedScale = (1 + ease * 0.46) * pulse;
       this.innerSeed.scale.setScalar(seedScale);
-      this.crystalShellMat.emissiveIntensity = THREE.MathUtils.lerp(0.24, 1.45, ease);
-      this.coreGlowMat.opacity = THREE.MathUtils.lerp(0.38, 0.95, ease);
-      const glowScale = 1 + ease * 0.65;
+      this.crystalShellMat.emissiveIntensity = THREE.MathUtils.lerp(0.24, 1.55, ease);
+      this.coreGlowMat.opacity = THREE.MathUtils.lerp(0.38, 0.96, ease);
+      const glowScale = 1 + ease * 0.72;
       this.coreGlowSprite.scale.setScalar(glowScale);
-      this.coreLight.intensity = THREE.MathUtils.lerp(1.4, 5.2, ease);
+      this.coreLight.intensity = THREE.MathUtils.lerp(1.4, 5.5, ease);
 
       if (p >= 1) {
-        this._spawnEnergyWave(6.4, 0xfff3d4);
-        this._spawnEnergyWave(4.0, 0xe8cfa0);
+        this._spawnEnergyWave(6.6, 0xfff3d4);
+        this._spawnEnergyWave(4.2, 0xe8cfa0);
         ritualSound.playChime('sacred');
         if (typeof this.onImpactCallback === 'function') {
-          this.onImpactCallback(0.042);
+          this.onImpactCallback(0.036);
         }
         this._setPhase(CELESTIAL_PHASES.REVELATION);
       }
       return;
     }
 
-    // 6. REVELATION（0.90s）：
-    //    因果最終幕 — 中央六段同心金弧優雅向外舒展開啟 (0.00 -> 0.13)，核心光芒由中心向外擴散，天光破曉！
+    // 6. REVELATION（1.55s）：
+    //    中央六段金弧從容緩慢地向外舒展開封，神聖柔光自核心悠遠擴散，天光漸次破曉
     if (this.phase === CELESTIAL_PHASES.REVELATION) {
-      const dur = this.reducedMotion ? 0.34 : 0.90;
+      const dur = this.reducedMotion ? 0.48 : 1.55;
       const p = Math.min(1, this.phaseTime / dur);
       const openEase = 1 - Math.pow(1 - p, 3);
 
       this.sealArcs.forEach((sa) => {
-        sa.arcMesh.position.x = THREE.MathUtils.lerp(0.0, 0.135, openEase);
+        sa.arcMesh.position.x = THREE.MathUtils.lerp(0.0, 0.145, openEase);
       });
 
-      this.innerStarMesh.rotation.z += safeDt * 1.4;
-      this.crystalShellMat.emissiveIntensity = THREE.MathUtils.lerp(1.45, 0.65, p);
-      this.coreGlowMat.opacity = THREE.MathUtils.lerp(0.95, 0.55, p);
-      this.coreLight.intensity = THREE.MathUtils.lerp(5.2, 2.2, p);
+      this.innerStarMesh.rotation.z += safeDt * 0.65;
+      this.crystalShellMat.emissiveIntensity = THREE.MathUtils.lerp(1.55, 0.62, p);
+      this.coreGlowMat.opacity = THREE.MathUtils.lerp(0.96, 0.52, p);
+      this.coreLight.intensity = THREE.MathUtils.lerp(5.5, 2.1, p);
 
       if (p >= 1) {
         this._setPhase(CELESTIAL_PHASES.GUIDANCE);
