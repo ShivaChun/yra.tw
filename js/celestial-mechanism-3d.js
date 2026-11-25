@@ -1,14 +1,15 @@
 /**
  * celestial-mechanism-3d.js
- * 「宇宙指引 · Celestial Mechanism」電影級 3D 精密宇宙封印天體機關
- * 六階段狀態機：DORMANT → AWAKENING → ACTIVATION → UNLOCKING → REVELATION → GUIDANCE
+ * 「宇宙指引 · Elegant Celestial Mechanism」精密天體封印機關（精修版）
  *
- * 3D 實體機械結構（五層精密同心與斜交機構，共享 BufferGeometry 控制低 Draw Call）：
- * 1. 外層周天赤道齒輪環（36 枚精密立體機械齒槽＋360° 天文刻度古銅環）
- * 2. 十二星宿符文封印環（12 枚獨立立體符文牌，AWAKENING 階段逐一點亮泛光）
- * 3. 斜交星軌子午雙環與十二芒神聖幾何骨架（不同軸向、不同方向與獨立角速度）
- * 4. 中央六瓣古銅鑲青玉機械鎖（Iris Seal Claws：UNLOCKING 階段真實旋轉退栓並向外滑開解封）
- * 5. 深邃多面折射能量星核與立體擴散光波（REVELATION 階段由中心向外層層釋放）
+ * 設計準則（遠看輪廓簡潔有力量，近看具備豐富古典天文金屬雕刻工藝）：
+ * - 第一層 Outer Ring（外圍主環）：完整連續、具金屬倒角厚度的車削香檳古銅主環，表面精雕十二星宿符文與周天刻度，無零碎突出鋸齒。
+ * - 第二層 Celestial Orbit（天體運行環）：雙組不同傾角、扁平矩形斷面的連續天體軌道環與星體節點，與外環及核心保持從容留白比例。
+ * - 第三層 Core Seal（中央封印）：對稱有序的六芒／十二芒星晷刻盤、六段同心圓弧鎖環（無風扇葉片、無雜亂交錯線）與立體透光能量星核。
+ *
+ * 機械因果動畫狀態機：
+ *   DORMANT → ALIGNMENT → ORBIT_ROTATION → SEAL_LOCKING → ENERGY_ACTIVATION → REVELATION (→ GUIDANCE)
+ *   嚴格區分「固定基準結構」、「定位主環」、「軌道運行結構」與「中央封印鎖定結構」，具清晰前後因果關係。
  */
 
 import * as THREE from 'three';
@@ -16,9 +17,10 @@ import { ritualSound } from './sound-synth.js';
 
 export const CELESTIAL_PHASES = Object.freeze({
   DORMANT: 'DORMANT',
-  AWAKENING: 'AWAKENING',
-  ACTIVATION: 'ACTIVATION',
-  UNLOCKING: 'UNLOCKING',
+  ALIGNMENT: 'ALIGNMENT',
+  ORBIT_ROTATION: 'ORBIT_ROTATION',
+  SEAL_LOCKING: 'SEAL_LOCKING',
+  ENERGY_ACTIVATION: 'ENERGY_ACTIVATION',
   REVELATION: 'REVELATION',
   GUIDANCE: 'GUIDANCE'
 });
@@ -35,118 +37,297 @@ export function formatOracleIndex(num) {
 }
 
 /**
- * 程式化生成精密天文齒輪刻度金屬紋理
+ * 為 RingGeometry 設定無變形平面極座標 UV，使圓盤蝕刻貼圖 100% 精準對齊圓環表面
  */
-function createEngravedScaleTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d');
+function applyPlanarRingUV(ringGeom, maxRadius) {
+  const pos = ringGeom.attributes.position;
+  const uv = ringGeom.attributes.uv;
+  const inv = 1 / (maxRadius * 2);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    uv.setXY(i, x * inv + 0.5, y * inv + 0.5);
+  }
+  uv.needsUpdate = true;
+  return ringGeom;
+}
 
-  const grad = ctx.createLinearGradient(0, 0, 0, 128);
-  grad.addColorStop(0, '#59462b');
-  grad.addColorStop(0.5, '#cbb082');
-  grad.addColorStop(1, '#473720');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 1024, 128);
+/**
+ * 建構具真實矩形斷面與 45° 精密倒角的金屬環體 (LatheGeometry 轉向 XY 平面)
+ */
+function createMachinedRingGeometry(rInner, rOuter, halfThickness, bevel = 0.014, segments = 128) {
+  const profile = [
+    new THREE.Vector2(rInner, -halfThickness + bevel),
+    new THREE.Vector2(rInner + bevel, -halfThickness),
+    new THREE.Vector2(rOuter - bevel, -halfThickness),
+    new THREE.Vector2(rOuter, -halfThickness + bevel),
+    new THREE.Vector2(rOuter, halfThickness - bevel),
+    new THREE.Vector2(rOuter - bevel, halfThickness),
+    new THREE.Vector2(rInner + bevel, halfThickness),
+    new THREE.Vector2(rInner, halfThickness - bevel),
+    new THREE.Vector2(rInner, -halfThickness + bevel)
+  ];
+  const geom = new THREE.LatheGeometry(profile, segments);
+  geom.rotateX(Math.PI * 0.5);
+  geom.computeVertexNormals();
+  return geom;
+}
 
-  for (let i = 0; i < 144; i++) {
-    const x = (i / 144) * 1024;
-    const isMajor = i % 12 === 0;
-    const isMid = i % 4 === 0;
-    ctx.strokeStyle = isMajor
-      ? 'rgba(255, 246, 224, 0.88)'
-      : isMid
-      ? 'rgba(240, 216, 172, 0.52)'
-      : 'rgba(62, 44, 22, 0.45)';
-    ctx.lineWidth = isMajor ? 2.6 : isMid ? 1.5 : 0.9;
+/**
+ * 程式化繪製第一層「外圍主環」高精細古典星盤蝕刻表面與發光遮罩
+ * (rNorm: 1.48 / 1.84 = 0.804 至 1.0)
+ */
+function createOuterRingTextures() {
+  const size = 1024;
+  const cx = size * 0.5;
+  const cy = size * 0.5;
+  const outerPx = size * 0.5; // 對應 r = 1.84
+  const innerPx = outerPx * (1.48 / 1.84); // 對應 r = 1.48
+
+  // 1. 香檳古銅拉絲與蝕刻色彩／凹凸貼圖
+  const colorCanvas = document.createElement('canvas');
+  colorCanvas.width = size;
+  colorCanvas.height = size;
+  const ctx = colorCanvas.getContext('2d');
+
+  // 2. 十二星宿符文柔和發光貼圖（ALIGNMENT 時點亮，無任何黑色方塊）
+  const emissiveCanvas = document.createElement('canvas');
+  emissiveCanvas.width = size;
+  emissiveCanvas.height = size;
+  const ectx = emissiveCanvas.getContext('2d');
+  ectx.fillStyle = '#000000';
+  ectx.fillRect(0, 0, size, size);
+
+  // 金屬環面徑向緞面漸層（溫潤明亮香檳古銅金光澤）
+  const radGrad = ctx.createRadialGradient(cx, cy, innerPx, cx, cy, outerPx);
+  radGrad.addColorStop(0.0, '#c8a66c');
+  radGrad.addColorStop(0.14, '#f2ddb2');
+  radGrad.addColorStop(0.52, '#e4c892');
+  radGrad.addColorStop(0.88, '#f4e0b6');
+  radGrad.addColorStop(1.0, '#ba975c');
+  ctx.fillStyle = radGrad;
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ectx.save();
+  ectx.translate(cx, cy);
+
+  // 極細微金屬同心車削髮絲紋
+  for (let i = 0; i < 42; i++) {
+    const r = innerPx + (i / 42) * (outerPx - innerPx);
+    ctx.strokeStyle = i % 2 === 0 ? 'rgba(255, 248, 232, 0.11)' : 'rgba(92, 68, 34, 0.09)';
+    ctx.lineWidth = 0.8;
     ctx.beginPath();
-    ctx.moveTo(x, isMajor ? 12 : isMid ? 26 : 38);
-    ctx.lineTo(x, isMajor ? 116 : isMid ? 102 : 90);
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.stroke();
   }
 
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
+  // 主副階梯倒角刻線圈
+  const rOuterLine = outerPx * 0.972;
+  const rDegreeOuter = outerPx * 0.948;
+  const rRuneBandOuter = outerPx * 0.918;
+  const rRuneBandInner = innerPx * 1.045;
+  const rInnerLine = innerPx * 1.018;
+
+  [rOuterLine, rDegreeOuter, rRuneBandOuter, rRuneBandInner, rInnerLine].forEach((r, idx) => {
+    ctx.strokeStyle = idx === 0 || idx === 4 ? 'rgba(86, 62, 28, 0.68)' : 'rgba(96, 70, 32, 0.48)';
+    ctx.lineWidth = idx === 0 || idx === 4 ? 2.2 : 1.3;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
+  // 360 道精密周天角度刻線（外圈細刻度）
+  for (let deg = 0; deg < 360; deg += 2) {
+    const a = (deg * Math.PI) / 180;
+    const is30 = deg % 30 === 0;
+    const is10 = deg % 10 === 0;
+    const len = is30 ? rOuterLine - rRuneBandInner : is10 ? rOuterLine - rRuneBandOuter : (rOuterLine - rDegreeOuter) * 0.85;
+    ctx.strokeStyle = is30
+      ? 'rgba(78, 54, 22, 0.78)'
+      : is10
+      ? 'rgba(88, 62, 28, 0.52)'
+      : 'rgba(98, 72, 36, 0.30)';
+    ctx.lineWidth = is30 ? 2.0 : is10 ? 1.3 : 0.8;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * rOuterLine, Math.sin(a) * rOuterLine);
+    ctx.lineTo(Math.cos(a) * (rOuterLine - len), Math.sin(a) * (rOuterLine - len));
+    ctx.stroke();
+  }
+
+  // 十二宮區間內嵌蝕刻古老星宿符文（直接雕刻於香檳金環面，無突兀黑塊）
+  const rRuneMid = (rRuneBandOuter + rRuneBandInner) * 0.5;
+  const drawAstrolabeGlyph = (context, idx, strokeCol, lineW) => {
+    context.strokeStyle = strokeCol;
+    context.lineWidth = lineW;
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    const v = idx % 6;
+    context.beginPath();
+    if (v === 0) {
+      context.arc(0, 0, 9.5, 0, Math.PI * 2);
+      context.moveTo(-14, 0);
+      context.lineTo(14, 0);
+      context.moveTo(0, -13);
+      context.lineTo(0, 13);
+    } else if (v === 1) {
+      context.moveTo(-11, 9);
+      context.lineTo(0, -11);
+      context.lineTo(11, 9);
+      context.closePath();
+      context.arc(0, 2, 3.2, 0, Math.PI * 2);
+    } else if (v === 2) {
+      context.arc(0, -3, 7.5, Math.PI * 0.15, Math.PI * 0.85, true);
+      context.moveTo(0, -11);
+      context.lineTo(0, 11);
+      context.moveTo(-8, 5);
+      context.lineTo(8, 5);
+    } else if (v === 3) {
+      context.moveTo(0, -12);
+      context.lineTo(10, 0);
+      context.lineTo(0, 12);
+      context.lineTo(-10, 0);
+      context.closePath();
+      context.moveTo(-14, 0);
+      context.lineTo(-10, 0);
+      context.moveTo(10, 0);
+      context.lineTo(14, 0);
+    } else if (v === 4) {
+      context.arc(-4, 0, 9, -Math.PI * 0.6, Math.PI * 0.6);
+      context.arc(4, 0, 9, Math.PI * 0.4, Math.PI * 1.6);
+    } else {
+      for (let k = 0; k < 4; k++) {
+        const ka = (k * Math.PI) / 4;
+        const rr = k % 2 === 0 ? 12 : 7;
+        context.moveTo(Math.cos(ka) * -rr, Math.sin(ka) * -rr);
+        context.lineTo(Math.cos(ka) * rr, Math.sin(ka) * rr);
+      }
+    }
+    context.stroke();
+  };
+
+  for (let i = 0; i < 12; i++) {
+    const midAngle = ((i + 0.5) / 12) * Math.PI * 2;
+    // 金屬陰刻深線＋高光邊
+    ctx.save();
+    ctx.rotate(midAngle + Math.PI * 0.5);
+    ctx.translate(0, -rRuneMid);
+    drawAstrolabeGlyph(ctx, i, 'rgba(255, 248, 228, 0.45)', 3.2);
+    drawAstrolabeGlyph(ctx, i, 'rgba(78, 54, 22, 0.82)', 1.8);
+    ctx.restore();
+
+    // 同步繪製符文與刻度微光層
+    ectx.save();
+    ectx.rotate(midAngle + Math.PI * 0.5);
+    ectx.translate(0, -rRuneMid);
+    ectx.shadowColor = '#fff0c8';
+    ectx.shadowBlur = 8;
+    drawAstrolabeGlyph(ectx, i, '#fff6df', 2.4);
+    ectx.restore();
+  }
+
+  // 發光層細雙環
+  ectx.strokeStyle = 'rgba(255, 240, 204, 0.45)';
+  ectx.lineWidth = 1.4;
+  ectx.beginPath();
+  ectx.arc(0, 0, rRuneBandOuter, 0, Math.PI * 2);
+  ectx.stroke();
+  ectx.beginPath();
+  ectx.arc(0, 0, rRuneBandInner, 0, Math.PI * 2);
+  ectx.stroke();
+
+  ctx.restore();
+  ectx.restore();
+
+  const mapTex = new THREE.CanvasTexture(colorCanvas);
+  mapTex.colorSpace = THREE.SRGBColorSpace;
+  mapTex.anisotropy = 4;
+
+  const emissiveTex = new THREE.CanvasTexture(emissiveCanvas);
+  emissiveTex.colorSpace = THREE.SRGBColorSpace;
+  emissiveTex.anisotropy = 4;
+
+  return { mapTex, emissiveTex };
 }
 
 /**
- * 程式化繪製 12 枚各具造型的古老星象幾何符文貼圖
+ * 程式化繪製第三層「中央封印 Core Seal」對稱有序星芒幾何刻盤（參考圖 4 精緻放射星晷）
  */
-function createRuneGlyphTexture(glyphIndex) {
+function createCoreSealDiscTexture() {
+  const size = 1024;
+  const cx = 512;
+  const cy = 512;
   const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 128;
+  canvas.width = size;
+  canvas.height = size;
   const ctx = canvas.getContext('2d');
 
-  ctx.fillStyle = '#181c28';
-  ctx.fillRect(0, 0, 128, 128);
+  ctx.clearRect(0, 0, size, size);
+  ctx.save();
+  ctx.translate(cx, cy);
 
-  ctx.strokeStyle = '#f3dfb9';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(10, 10, 108, 108);
-
-  ctx.translate(64, 64);
-  ctx.strokeStyle = '#fff5df';
-  ctx.fillStyle = '#fff5df';
-  ctx.lineWidth = 4.5;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  // 依據序號產生不同古星象幾何圖騰
-  const variant = glyphIndex % 6;
+  // 半透明溫玉珍珠底盤柔暈
+  const bg = ctx.createRadialGradient(0, 0, 60, 0, 0, 480);
+  bg.addColorStop(0.0, 'rgba(255, 250, 238, 0.55)');
+  bg.addColorStop(0.65, 'rgba(238, 224, 194, 0.24)');
+  bg.addColorStop(0.95, 'rgba(216, 188, 134, 0.34)');
+  bg.addColorStop(1.0, 'rgba(216, 188, 134, 0.0)');
+  ctx.fillStyle = bg;
   ctx.beginPath();
-  if (variant === 0) {
-    ctx.arc(0, 0, 26, 0, Math.PI * 2);
-    ctx.moveTo(0, -34);
-    ctx.lineTo(0, 34);
-    ctx.moveTo(-24, 0);
-    ctx.lineTo(24, 0);
-  } else if (variant === 1) {
-    ctx.moveTo(0, -30);
-    ctx.lineTo(28, 22);
-    ctx.lineTo(-28, 22);
-    ctx.closePath();
-    ctx.moveTo(0, 30);
-    ctx.lineTo(0, -12);
-  } else if (variant === 2) {
-    ctx.arc(0, -10, 18, 0, Math.PI * 2);
-    ctx.moveTo(-22, 18);
-    ctx.quadraticCurveTo(0, 34, 22, 18);
-    ctx.moveTo(0, -28);
-    ctx.lineTo(0, 28);
-  } else if (variant === 3) {
-    ctx.moveTo(0, -32);
-    ctx.lineTo(28, 0);
-    ctx.lineTo(0, 32);
-    ctx.lineTo(-28, 0);
-    ctx.closePath();
-    ctx.arc(0, 0, 9, 0, Math.PI * 2);
-  } else if (variant === 4) {
-    ctx.arc(-6, 0, 22, -Math.PI * 0.65, Math.PI * 0.65);
-    ctx.moveTo(12, -24);
-    ctx.lineTo(12, 24);
-    ctx.moveTo(-2, 0);
-    ctx.lineTo(24, 0);
-  } else {
-    for (let k = 0; k < 3; k++) {
-      const a = (k * Math.PI) / 3;
-      ctx.moveTo(Math.cos(a) * -28, Math.sin(a) * -28);
-      ctx.lineTo(Math.cos(a) * 28, Math.sin(a) * 28);
-    }
-    ctx.arc(0, 0, 14, 0, Math.PI * 2);
+  ctx.arc(0, 0, 480, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#dfbe82';
+  ctx.lineCap = 'round';
+
+  // 外雙細環與內定位環（層次分明，絕不雜亂交錯）
+  [468, 446, 336, 198].forEach((r, idx) => {
+    ctx.globalAlpha = idx === 0 ? 0.92 : 0.68;
+    ctx.lineWidth = idx === 0 ? 3.0 : 1.8;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
+  // 單一端正對稱六角星章外輪廓（僅於 336~446 環帶間呈現乾淨幾何秩序）
+  ctx.globalAlpha = 0.78;
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  for (let i = 0; i < 12; i++) {
+    const a = (i * Math.PI) / 6 - Math.PI * 0.5;
+    const r = i % 2 === 0 ? 444 : 362;
+    const x = Math.cos(a) * r;
+    const y = Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
   }
+  ctx.closePath();
   ctx.stroke();
 
+  // 中央 36 道精緻長短交替太陽放射星芒刻線（對標參考圖 4）
+  for (let i = 0; i < 36; i++) {
+    const a = (i / 36) * Math.PI * 2;
+    const isMajor = i % 3 === 0;
+    const rIn = 148;
+    const rOut = isMajor ? 316 : 268;
+    ctx.globalAlpha = isMajor ? 0.88 : 0.48;
+    ctx.lineWidth = isMajor ? 2.4 : 1.3;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * rIn, Math.sin(a) * rIn);
+    ctx.lineTo(Math.cos(a) * rOut, Math.sin(a) * rOut);
+    ctx.stroke();
+  }
+
+  ctx.restore();
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
   return tex;
 }
 
 /**
- * 柔和中心徑向光暈貼圖
+ * 中心柔和透光光暈貼圖
  */
 function createRadialGlowTexture() {
   const canvas = document.createElement('canvas');
@@ -154,353 +335,425 @@ function createRadialGlowTexture() {
   canvas.height = 256;
   const ctx = canvas.getContext('2d');
   const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-  g.addColorStop(0, 'rgba(255, 252, 242, 1.0)');
-  g.addColorStop(0.32, 'rgba(235, 210, 162, 0.55)');
-  g.addColorStop(0.7, 'rgba(180, 198, 230, 0.16)');
+  g.addColorStop(0, 'rgba(255, 253, 245, 1.0)');
+  g.addColorStop(0.28, 'rgba(245, 224, 178, 0.62)');
+  g.addColorStop(0.68, 'rgba(220, 196, 148, 0.18)');
   g.addColorStop(1, 'rgba(255, 255, 255, 0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 256, 256);
   return new THREE.CanvasTexture(canvas);
 }
 
+/**
+ * 建構精緻立體四角星芒鑲釘 (✦)
+ */
+function createFourPointStarGeometry(outerR = 0.068, innerR = 0.022, depth = 0.018) {
+  const shape = new THREE.Shape();
+  for (let i = 0; i < 8; i++) {
+    const a = (i * Math.PI) / 4;
+    const r = i % 2 === 0 ? outerR : innerR;
+    const x = Math.cos(a) * r;
+    const y = Math.sin(a) * r;
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  const geom = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: true,
+    bevelThickness: 0.006,
+    bevelSize: 0.005,
+    bevelSegments: 2
+  });
+  geom.center();
+  return geom;
+}
+
 export class CelestialMechanismScene {
   constructor() {
     this.group = new THREE.Group();
     this.mechanismRoot = new THREE.Group();
-    this.runePlaques = [];
-    this.sealClaws = [];
     this.waves = [];
-    this.orbiters = [];
+    this.sealArcs = [];
+    this.starStuds = [];
 
     this.phase = CELESTIAL_PHASES.DORMANT;
     this.sessionId = 0;
     this.elapsed = 0;
     this.phaseTime = 0;
-    this.lastTickTime = 0;
-    this.litRuneCount = 0;
-    this.lockSoundPlayed = false;
     this.reducedMotion = false;
+
+    this.alignLockPlayed = false;
+    this.orbitLockPlayed = false;
+    this.sealLockPlayed = false;
 
     this.onRevealedCallback = null;
     this.onPhaseChange = null;
     this.onImpactCallback = null;
 
-    this.baseScale = 0.70;
-    this.mechanismRoot.position.set(0, 0.04, 0);
+    this.baseScale = 0.72;
+    this.mechanismRoot.position.set(0, 0.03, 0);
     this.mechanismRoot.scale.setScalar(this.baseScale);
     this.group.add(this.mechanismRoot);
 
     this._initMaterials();
-    this._initLayer1OuterGearRing();
-    this._initLayer2RuneSealBand();
-    this._initLayer3CelestialGeometry();
-    this._initLayer4MechanicalIrisLock();
-    this._initLayer5EnergyCore();
-    this._initOrbitingAstrolabeNodes();
+    this._initFixedAstrolabeFrame();
+    this._initTier1OuterRing();
+    this._initTier2CelestialOrbits();
+    this._initTier3CoreSeal();
   }
 
   _initMaterials() {
-    const scaleTex = createEngravedScaleTexture();
-
-    this.champagneBronzeMat = new THREE.MeshStandardMaterial({
-      map: scaleTex,
-      color: 0xd8be92,
+    // 維持純粹香檳金、古銅金、暖白與溫潤淺銀銅色系（無突兀黑色零件）
+    this.champagneGoldMat = new THREE.MeshStandardMaterial({
+      color: 0xdcc292,
       metalness: 0.84,
-      roughness: 0.26
+      roughness: 0.25
     });
 
-    this.celestialSlateMat = new THREE.MeshStandardMaterial({
-      color: 0x384358,
-      metalness: 0.76,
-      roughness: 0.32
+    this.antiqueBrassMat = new THREE.MeshStandardMaterial({
+      color: 0xb9965c,
+      metalness: 0.82,
+      roughness: 0.30
     });
 
-    this.paleJadeMat = new THREE.MeshPhysicalMaterial({
-      color: 0x9fc0b4,
-      roughness: 0.22,
-      metalness: 0.12,
-      clearcoat: 0.75,
-      emissive: new THREE.Color(0x88b8a6),
-      emissiveIntensity: 0.05
-    });
-
-    this.brightGoldMat = new THREE.MeshStandardMaterial({
-      color: 0xecd5ab,
-      metalness: 0.9,
-      roughness: 0.2,
-      emissive: new THREE.Color(0xd8b474),
-      emissiveIntensity: 0.06
-    });
-  }
-
-  /**
-   * 第一層：外層周天 36 齒精密機械齒輪環
-   */
-  _initLayer1OuterGearRing() {
-    this.outerGearGroup = new THREE.Group();
-
-    const mainTorus = new THREE.Mesh(
-      new THREE.TorusGeometry(1.78, 0.052, 24, 112),
-      this.champagneBronzeMat
-    );
-    mainTorus.castShadow = true;
-    this.outerGearGroup.add(mainTorus);
-
-    // 內嵌副軌道細環
-    const subTorus = new THREE.Mesh(
-      new THREE.TorusGeometry(1.64, 0.018, 16, 96),
-      this.brightGoldMat
-    );
-    this.outerGearGroup.add(subTorus);
-
-    // 共享幾何建構 36 枚外周機械咬合齒與 12 枚內向卡榫
-    const toothGeom = new THREE.BoxGeometry(0.065, 0.11, 0.055);
-    const pawlGeom = new THREE.BoxGeometry(0.036, 0.09, 0.038);
-
-    for (let i = 0; i < 36; i++) {
-      const a = (i / 36) * Math.PI * 2;
-      const tooth = new THREE.Mesh(toothGeom, i % 3 === 0 ? this.brightGoldMat : this.champagneBronzeMat);
-      tooth.position.set(Math.cos(a) * 1.86, Math.sin(a) * 1.86, 0);
-      tooth.rotation.z = a - Math.PI * 0.5;
-      this.outerGearGroup.add(tooth);
-
-      if (i % 3 === 0) {
-        const pawl = new THREE.Mesh(pawlGeom, this.celestialSlateMat);
-        pawl.position.set(Math.cos(a) * 1.58, Math.sin(a) * 1.58, 0);
-        pawl.rotation.z = a - Math.PI * 0.5;
-        this.outerGearGroup.add(pawl);
-      }
-    }
-
-    this.outerGearGroup.rotation.set(0.28, 0.16, 0.08);
-    this.mechanismRoot.add(this.outerGearGroup);
-  }
-
-  /**
-   * 第二層：十二星宿符文封印環（12 枚獨立可控發光符文牌）
-   */
-  _initLayer2RuneSealBand() {
-    this.runeBandGroup = new THREE.Group();
-
-    const bandTorus = new THREE.Mesh(
-      new THREE.TorusGeometry(1.38, 0.036, 20, 96),
-      this.celestialSlateMat
-    );
-    this.runeBandGroup.add(bandTorus);
-
-    const plaqueGeom = new THREE.BoxGeometry(0.20, 0.20, 0.034);
-    const frameGeom = new THREE.BoxGeometry(0.225, 0.225, 0.024);
-
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2;
-      const holder = new THREE.Group();
-      holder.position.set(Math.cos(a) * 1.38, Math.sin(a) * 1.38, 0);
-      holder.rotation.z = a - Math.PI * 0.5;
-
-      const frame = new THREE.Mesh(frameGeom, this.brightGoldMat);
-      holder.add(frame);
-
-      const glyphTex = createRuneGlyphTexture(i);
-      const runeMat = new THREE.MeshStandardMaterial({
-        map: glyphTex,
-        color: 0x8e96a8,
-        roughness: 0.3,
-        metalness: 0.4,
-        emissive: new THREE.Color(0xf4d9a0),
-        emissiveMap: glyphTex,
-        emissiveIntensity: 0.03
-      });
-
-      const plaque = new THREE.Mesh(plaqueGeom, runeMat);
-      holder.add(plaque);
-
-      this.runeBandGroup.add(holder);
-      this.runePlaques.push({ holder, runeMat, lit: false });
-    }
-
-    this.runeBandGroup.rotation.set(-0.38, 0.32, -0.22);
-    this.mechanismRoot.add(this.runeBandGroup);
-  }
-
-  /**
-   * 第三層：斜交子午環與神聖十二芒星幾何骨架
-   */
-  _initLayer3CelestialGeometry() {
-    this.geometryGimbal = new THREE.Group();
-
-    // 斜交天球軌道環
-    const meridian1 = new THREE.Mesh(
-      new THREE.TorusGeometry(1.08, 0.022, 18, 88),
-      this.brightGoldMat
-    );
-    meridian1.rotation.x = Math.PI * 0.32;
-    this.geometryGimbal.add(meridian1);
-
-    const meridian2 = new THREE.Mesh(
-      new THREE.TorusGeometry(1.04, 0.016, 16, 88),
-      this.paleJadeMat
-    );
-    meridian2.rotation.y = Math.PI * 0.36;
-    this.geometryGimbal.add(meridian2);
-
-    // 雙正六邊／六芒星交錯精密連桿（12 芒神聖幾何）
-    this.sacredStarMat = new THREE.MeshStandardMaterial({
-      color: 0xe8d0a2,
-      metalness: 0.88,
-      roughness: 0.22,
-      emissive: new THREE.Color(0xe5c68b),
+    this.paleCelestialGoldMat = new THREE.MeshStandardMaterial({
+      color: 0xe6d6b8,
+      metalness: 0.78,
+      roughness: 0.24,
+      emissive: new THREE.Color(0xdcb878),
       emissiveIntensity: 0.04
     });
 
-    this.starFrameGroup = new THREE.Group();
-    const radius = 1.04;
-    const rodGeom = new THREE.CylinderGeometry(0.011, 0.011, radius * Math.sqrt(3), 10);
-
-    for (let t = 0; t < 4; t++) {
-      const baseAngle = (t * Math.PI) / 6;
-      for (let side = 0; side < 3; side++) {
-        const a1 = baseAngle + (side * Math.PI * 2) / 3;
-        const a2 = baseAngle + ((side + 1) * Math.PI * 2) / 3;
-        const p1 = new THREE.Vector3(Math.cos(a1) * radius, Math.sin(a1) * radius, 0);
-        const p2 = new THREE.Vector3(Math.cos(a2) * radius, Math.sin(a2) * radius, 0);
-        const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
-        const dir = new THREE.Vector3().subVectors(p2, p1).normalize();
-
-        const rod = new THREE.Mesh(rodGeom, this.sacredStarMat);
-        rod.position.copy(mid);
-        rod.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-        this.starFrameGroup.add(rod);
-      }
-    }
-
-    this.geometryGimbal.add(this.starFrameGroup);
-    this.geometryGimbal.rotation.set(0.52, -0.35, 0.18);
-    this.mechanismRoot.add(this.geometryGimbal);
+    this.warmIvoryPearlMat = new THREE.MeshPhysicalMaterial({
+      color: 0xfbf6ec,
+      roughness: 0.16,
+      metalness: 0.12,
+      clearcoat: 0.9,
+      emissive: new THREE.Color(0xf2d9a4),
+      emissiveIntensity: 0.12
+    });
   }
 
   /**
-   * 第四層：中央六瓣玉金機械鎖 (Mechanical Iris Seal)
-   * 平時緊密聚攏封住核心；UNLOCKING 時先旋轉退栓，再沿徑向滑開外展！
+   * 固定結構（Fixed Structure）：星盤頂部懸環冠座、底部鎮樞與四方定位基準指針（全程靜止不動）
    */
-  _initLayer4MechanicalIrisLock() {
-    this.irisLockGroup = new THREE.Group();
+  _initFixedAstrolabeFrame() {
+    this.fixedFrameGroup = new THREE.Group();
 
-    // 鎖座內環
-    const lockHousing = new THREE.Mesh(
-      new THREE.TorusGeometry(0.74, 0.032, 18, 72),
-      this.champagneBronzeMat
+    // 北極古典星盤冠環 (對標參考圖 1 & 2 頂部提環)
+    const topCollar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.085, 0.135, 0.08, 24),
+      this.antiqueBrassMat
     );
-    this.irisLockGroup.add(lockHousing);
+    topCollar.position.set(0, 1.88, 0);
+    this.fixedFrameGroup.add(topCollar);
 
-    // 六片楔形玉金鎖瓣
-    const clawOuterGeom = new THREE.CylinderGeometry(0.06, 0.26, 0.42, 4);
-    const jadeInlayGeom = new THREE.BoxGeometry(0.08, 0.24, 0.055);
+    const topBail = new THREE.Mesh(
+      new THREE.TorusGeometry(0.095, 0.020, 16, 48),
+      this.champagneGoldMat
+    );
+    topBail.position.set(0, 1.99, 0);
+    this.fixedFrameGroup.add(topBail);
+
+    // 南極對稱收尾鎮樞
+    const botFinial = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.11, 0.045, 0.075, 24),
+      this.antiqueBrassMat
+    );
+    botFinial.position.set(0, -1.88, 0);
+    this.fixedFrameGroup.add(botFinial);
+
+    const botRing = new THREE.Mesh(
+      new THREE.TorusGeometry(0.062, 0.016, 14, 36),
+      this.champagneGoldMat
+    );
+    botRing.position.set(0, -1.96, 0);
+    this.fixedFrameGroup.add(botRing);
+
+    // 四方內緣基準定位指針（N / E / S / W 固定刻度指標，讓外環旋轉對位一目了然）
+    const pointerGeom = new THREE.ConeGeometry(0.032, 0.085, 4);
+    for (let i = 0; i < 4; i++) {
+      const a = (i * Math.PI) / 2;
+      const ptr = new THREE.Mesh(pointerGeom, this.paleCelestialGoldMat);
+      ptr.position.set(Math.cos(a) * 1.44, Math.sin(a) * 1.44, 0.048);
+      ptr.rotation.z = a + Math.PI * 0.5;
+      this.fixedFrameGroup.add(ptr);
+    }
+
+    this.mechanismRoot.add(this.fixedFrameGroup);
+  }
+
+  /**
+   * 第一層：Outer Ring（外圍主環 r = 1.48 ~ 1.84）
+   * 完整厚實連續圓環、45° 精密倒角、十二星宿金屬蝕刻與周天刻度（無外突小齒輪）
+   */
+  _initTier1OuterRing() {
+    this.outerRingGroup = new THREE.Group();
+
+    // 1. 具立體厚度與內外倒角的車削古銅主環本體
+    const bodyGeom = createMachinedRingGeometry(1.48, 1.84, 0.068, 0.018, 128);
+    const bodyMesh = new THREE.Mesh(bodyGeom, this.antiqueBrassMat);
+    bodyMesh.castShadow = true;
+    bodyMesh.receiveShadow = true;
+    this.outerRingGroup.add(bodyMesh);
+
+    // 外緣與內緣極細香檳金高光倒角線環，強化金屬車削精緻度
+    const outerBevelRing = new THREE.Mesh(
+      new THREE.TorusGeometry(1.832, 0.010, 14, 128),
+      this.paleCelestialGoldMat
+    );
+    outerBevelRing.position.z = 0.058;
+    this.outerRingGroup.add(outerBevelRing);
+
+    const innerBevelRing = new THREE.Mesh(
+      new THREE.TorusGeometry(1.488, 0.010, 14, 128),
+      this.paleCelestialGoldMat
+    );
+    innerBevelRing.position.z = 0.058;
+    this.outerRingGroup.add(innerBevelRing);
+
+    // 2. 正反面高精度蝕刻星宿符文與周天刻度盤面
+    const { mapTex, emissiveTex } = createOuterRingTextures();
+    this.outerFaceMat = new THREE.MeshStandardMaterial({
+      map: mapTex,
+      bumpMap: mapTex,
+      bumpScale: 0.010,
+      color: 0xf7e7c4,
+      metalness: 0.72,
+      roughness: 0.22,
+      emissive: new THREE.Color(0xf6dfb0),
+      emissiveMap: emissiveTex,
+      emissiveIntensity: 0.12
+    });
+
+    const faceGeom = applyPlanarRingUV(new THREE.RingGeometry(1.485, 1.832, 128, 2), 1.84);
+    const frontFace = new THREE.Mesh(faceGeom, this.outerFaceMat);
+    frontFace.position.z = 0.069;
+    this.outerRingGroup.add(frontFace);
+
+    const backFace = new THREE.Mesh(faceGeom, this.outerFaceMat);
+    backFace.rotation.y = Math.PI;
+    backFace.position.z = -0.069;
+    this.outerRingGroup.add(backFace);
+
+    // 4 枚古典星盤定位鉚釘（極克制點綴於主環四象位）
+    const bossGeom = new THREE.CylinderGeometry(0.024, 0.028, 0.022, 16);
+    bossGeom.rotateX(Math.PI * 0.5);
+    for (let k = 0; k < 4; k++) {
+      const a = (k * Math.PI) / 2;
+      const boss = new THREE.Mesh(bossGeom, this.paleCelestialGoldMat);
+      boss.position.set(Math.cos(a) * 1.66, Math.sin(a) * 1.66, 0.072);
+      this.outerRingGroup.add(boss);
+    }
+
+    // 初始於沉睡時停留在未對位角度 (-0.54 rad)，ALIGNMENT 階段旋轉對準 0.000 rad 並鎖定
+    this.outerRingRestAngle = -0.54;
+    this.outerRingGroup.rotation.z = this.outerRingRestAngle;
+    this.mechanismRoot.add(this.outerRingGroup);
+  }
+
+  /**
+   * 第二層：Celestial Orbit（天體運行環 r = 0.96 ~ 1.17）
+   * 與外環保留 0.31 明顯負空間留白；採用雙組扁平矩形斷面連續金屬軌道（對標參考圖 2 & 3）
+   */
+  _initTier2CelestialOrbits() {
+    this.orbitSystemGroup = new THREE.Group();
+
+    // 軌道一：主黃道扁平寬帶環 (r = 1.10 ~ 1.17)
+    this.primaryOrbitGimbal = new THREE.Group();
+    const orbit1Geom = createMachinedRingGeometry(1.10, 1.168, 0.046, 0.009, 108);
+    const orbit1Mesh = new THREE.Mesh(orbit1Geom, this.champagneGoldMat);
+    this.primaryOrbitGimbal.add(orbit1Mesh);
+
+    // 主黃道環上的古典日輪星體節點（球體＋微細星環，對標參考圖 3 & 4）
+    const sunNodeGroup = new THREE.Group();
+    sunNodeGroup.position.set(1.134, 0, 0);
+    const sunSphere = new THREE.Mesh(new THREE.SphereGeometry(0.052, 20, 20), this.warmIvoryPearlMat);
+    const sunHaloRing = new THREE.Mesh(
+      new THREE.TorusGeometry(0.082, 0.007, 10, 36),
+      this.paleCelestialGoldMat
+    );
+    sunNodeGroup.add(sunSphere);
+    sunNodeGroup.add(sunHaloRing);
+    this.primaryOrbitGimbal.add(sunNodeGroup);
+
+    // 對側平衡金珠節點
+    const counterNode = new THREE.Mesh(
+      new THREE.SphereGeometry(0.032, 16, 16),
+      this.paleCelestialGoldMat
+    );
+    counterNode.position.set(-1.134, 0, 0);
+    this.primaryOrbitGimbal.add(counterNode);
+
+    this.primaryOrbitRestEuler = new THREE.Euler(0.46, -0.32, 0.18);
+    this.primaryOrbitAlignQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.32, 0.14, 0));
+    this.primaryOrbitGimbal.rotation.copy(this.primaryOrbitRestEuler);
+    this.orbitSystemGroup.add(this.primaryOrbitGimbal);
+
+    // 軌道二：副白道交錯扁平軌道環 (r = 0.96 ~ 1.015)
+    this.secondaryOrbitGimbal = new THREE.Group();
+    const orbit2Geom = createMachinedRingGeometry(0.958, 1.015, 0.036, 0.008, 108);
+    const orbit2Mesh = new THREE.Mesh(orbit2Geom, this.paleCelestialGoldMat);
+    this.secondaryOrbitGimbal.add(orbit2Mesh);
+
+    const moonNode = new THREE.Mesh(
+      new THREE.SphereGeometry(0.038, 18, 18),
+      this.warmIvoryPearlMat
+    );
+    moonNode.position.set(0, 0.986, 0);
+    this.secondaryOrbitGimbal.add(moonNode);
+
+    this.secondaryOrbitRestEuler = new THREE.Euler(-0.52, 0.38, -0.24);
+    this.secondaryOrbitAlignQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.32, -0.14, 0));
+    this.secondaryOrbitGimbal.rotation.copy(this.secondaryOrbitRestEuler);
+    this.orbitSystemGroup.add(this.secondaryOrbitGimbal);
+
+    // 兩端極簡天球儀軸承銷，連結外環與主軌道（體現合理機械支撐邏輯）
+    const pinGeom = new THREE.CylinderGeometry(0.012, 0.012, 0.30, 12);
+    const pinTop = new THREE.Mesh(pinGeom, this.antiqueBrassMat);
+    pinTop.position.set(0, 1.32, 0);
+    this.orbitSystemGroup.add(pinTop);
+
+    const pinBot = new THREE.Mesh(pinGeom, this.antiqueBrassMat);
+    pinBot.position.set(0, -1.32, 0);
+    this.orbitSystemGroup.add(pinBot);
+
+    this.mechanismRoot.add(this.orbitSystemGroup);
+  }
+
+  /**
+   * 第三層：Core Seal（中央封印 r = 0.0 ~ 0.66）
+   * 對稱有序星芒刻盤＋六段同心圓弧鎖環＋立體透光能量核心（無風扇葉片、無雜亂交錯線）
+   */
+  _initTier3CoreSeal() {
+    this.coreSealGroup = new THREE.Group();
+
+    // 1. 中央封印外框細環 (r = 0.62 ~ 0.665) ＋ 6 枚對稱立體四角星鑲釘 (✦)
+    const sealCollarGeom = createMachinedRingGeometry(0.615, 0.662, 0.028, 0.007, 96);
+    const sealCollar = new THREE.Mesh(sealCollarGeom, this.champagneGoldMat);
+    this.coreSealGroup.add(sealCollar);
+
+    const starStudGeom = createFourPointStarGeometry(0.056, 0.018, 0.018);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + Math.PI * 0.5;
+      const studMat = new THREE.MeshStandardMaterial({
+        color: 0xefe0be,
+        metalness: 0.88,
+        roughness: 0.18,
+        emissive: new THREE.Color(0xf5dba0),
+        emissiveIntensity: 0.08
+      });
+      const stud = new THREE.Mesh(starStudGeom, studMat);
+      stud.position.set(Math.cos(a) * 0.638, Math.sin(a) * 0.638, 0.024);
+      stud.rotation.z = a;
+      this.coreSealGroup.add(stud);
+      this.starStuds.push({ mesh: stud, mat: studMat });
+    }
+
+    // 2. 對稱太陽放射星芒與六角星章半透刻盤 (對標參考圖 4)
+    const sealDiscTex = createCoreSealDiscTexture();
+    this.sealDiscMat = new THREE.MeshBasicMaterial({
+      map: sealDiscTex,
+      transparent: true,
+      opacity: 0.72,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    this.sealDiscMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.24, 1.24), this.sealDiscMat);
+    this.coreSealGroup.add(this.sealDiscMesh);
+
+    // 3. 六段同心圓弧鎖環（SEAL_LOCKING 時向內收束咬合成完整金環，REVELATION 時向外舒展開啟）
+    this.sealArcRingGroup = new THREE.Group();
+    const arcSpan = Math.PI / 3 - 0.11;
+    const arcGeom = new THREE.TorusGeometry(0.42, 0.016, 16, 32, arcSpan);
+
+    this.sealArcMat = new THREE.MeshStandardMaterial({
+      color: 0xead2a4,
+      metalness: 0.9,
+      roughness: 0.18,
+      emissive: new THREE.Color(0xf2d496),
+      emissiveIntensity: 0.08
+    });
 
     for (let i = 0; i < 6; i++) {
-      const angle = (i / 6) * Math.PI * 2;
-      const pivot = new THREE.Group();
-      pivot.rotation.z = angle;
+      const baseAngle = (i / 6) * Math.PI * 2;
+      const holder = new THREE.Group();
+      holder.rotation.z = baseAngle;
 
-      const clawAssembly = new THREE.Group();
-      // 閉合時尖端指向圓心 (y = 0.30)，退栓解鎖時沿 +Y 滑退至 y = 0.68 並微仰
-      clawAssembly.position.set(0, 0.31, 0.02);
+      const arcMesh = new THREE.Mesh(arcGeom, this.sealArcMat);
+      // 讓圓弧置中於該段 +X 方向，以便沿徑向平順收束與舒展
+      arcMesh.rotation.z = -arcSpan * 0.5;
+      arcMesh.position.set(0.06, 0, 0.022);
+      holder.add(arcMesh);
 
-      const bronzeWedge = new THREE.Mesh(clawOuterGeom, this.champagneBronzeMat);
-      bronzeWedge.rotation.y = Math.PI * 0.25;
-      bronzeWedge.rotation.z = Math.PI; // 窄端朝向中心
-      bronzeWedge.scale.set(1.0, 1.0, 0.28);
-      clawAssembly.add(bronzeWedge);
-
-      const jadeStrip = new THREE.Mesh(jadeInlayGeom, this.paleJadeMat);
-      jadeStrip.position.set(0, 0.02, 0.028);
-      clawAssembly.add(jadeStrip);
-
-      pivot.add(clawAssembly);
-      this.irisLockGroup.add(pivot);
-
-      this.sealClaws.push({
-        pivot,
-        clawAssembly,
-        baseAngle: angle
-      });
+      this.sealArcRingGroup.add(holder);
+      this.sealArcs.push({ holder, arcMesh, baseAngle });
     }
+    this.sealArcRingGroup.rotation.z = Math.PI / 6;
+    this.coreSealGroup.add(this.sealArcRingGroup);
 
-    this.mechanismRoot.add(this.irisLockGroup);
-  }
+    // 4. 中央立體透光能量核心（內部立體星芒核＋外部半透明琉璃玉球＋景深柔光暈）
+    this.energyCoreGroup = new THREE.Group();
 
-  /**
-   * 第五層：深邃多面能量星核與中心柔光暈
-   */
-  _initLayer5EnergyCore() {
-    this.coreGroup = new THREE.Group();
+    // 內層發光星種
+    this.innerSeedMat = new THREE.MeshBasicMaterial({
+      color: 0xfff8e6
+    });
+    this.innerSeed = new THREE.Mesh(new THREE.SphereGeometry(0.115, 28, 28), this.innerSeedMat);
+    this.energyCoreGroup.add(this.innerSeed);
 
-    const coreGeom = new THREE.IcosahedronGeometry(0.28, 1);
-    this.coreMat = new THREE.MeshPhysicalMaterial({
-      color: 0xfbf4e4,
-      roughness: 0.12,
-      metalness: 0.18,
+    // 內嵌精緻立體四角星核
+    const innerStarGeom = createFourPointStarGeometry(0.175, 0.052, 0.032);
+    this.innerStarMesh = new THREE.Mesh(innerStarGeom, this.paleCelestialGoldMat);
+    this.energyCoreGroup.add(this.innerStarMesh);
+
+    // 外層立體透光溫玉琉璃球殼（呈現真實立體感、透光感與深度）
+    this.crystalShellMat = new THREE.MeshPhysicalMaterial({
+      color: 0xfffaf0,
+      transparent: true,
+      opacity: 0.64,
+      roughness: 0.08,
+      metalness: 0.04,
       clearcoat: 1.0,
-      emissive: new THREE.Color(0xf0d298),
+      clearcoatRoughness: 0.06,
+      emissive: new THREE.Color(0xf4d89e),
       emissiveIntensity: 0.18
     });
-    this.coreMesh = new THREE.Mesh(coreGeom, this.coreMat);
-    this.coreGroup.add(this.coreMesh);
+    this.crystalShell = new THREE.Mesh(
+      new THREE.SphereGeometry(0.235, 40, 40),
+      this.crystalShellMat
+    );
+    this.energyCoreGroup.add(this.crystalShell);
 
-    const wireMat = new THREE.MeshBasicMaterial({
-      color: 0xfff3d6,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.35
-    });
-    this.coreWire = new THREE.Mesh(new THREE.OctahedronGeometry(0.35, 1), wireMat);
-    this.coreGroup.add(this.coreWire);
-
-    // 柔和光暈平面（始終朝向相機方向附近，營造無硬邊星核光感）
+    // 柔和中心景深光暈
     const glowTex = createRadialGlowTexture();
-    this.coreHaloMat = new THREE.MeshBasicMaterial({
+    this.coreGlowMat = new THREE.MeshBasicMaterial({
       map: glowTex,
-      color: 0xf7e2b8,
+      color: 0xfae4b8,
       transparent: true,
-      opacity: 0.22,
+      opacity: 0.34,
       blending: THREE.AdditiveBlending,
       depthWrite: false
     });
-    this.coreHalo = new THREE.Mesh(new THREE.PlaneGeometry(1.65, 1.65), this.coreHaloMat);
-    this.coreHalo.position.z = 0.05;
-    this.coreGroup.add(this.coreHalo);
+    this.coreGlowSprite = new THREE.Mesh(new THREE.PlaneGeometry(1.38, 1.38), this.coreGlowMat);
+    this.coreGlowSprite.position.z = -0.02;
+    this.energyCoreGroup.add(this.coreGlowSprite);
 
-    this.mechanismRoot.add(this.coreGroup);
+    this.coreSealGroup.add(this.energyCoreGroup);
+    this.mechanismRoot.add(this.coreSealGroup);
 
-    this.coreLight = new THREE.PointLight(0xf6dfb2, 0.85, 12, 1.8);
-    this.coreLight.position.set(0, 0.28, 0.45);
+    this.coreLight = new THREE.PointLight(0xf7e1b4, 1.0, 12, 1.8);
+    this.coreLight.position.set(0, 0.05, 0.55);
     this.group.add(this.coreLight);
   }
 
-  _initOrbitingAstrolabeNodes() {
-    const dotGeom = new THREE.SphereGeometry(0.026, 10, 10);
-    const dotMat = new THREE.MeshBasicMaterial({
-      color: 0xf2dfb8,
-      transparent: true,
-      opacity: 0.65
-    });
-
-    for (let i = 0; i < 14; i++) {
-      const m = new THREE.Mesh(dotGeom, dotMat);
-      const r = 2.02 + (i % 3) * 0.24;
-      const angle = (i / 14) * Math.PI * 2;
-      const speed = (i % 2 === 0 ? 1 : -1) * (0.07 + (i % 4) * 0.035);
-      const incl = (i % 2 === 0 ? 1 : -1) * (0.22 + (i % 3) * 0.16);
-      this.mechanismRoot.add(m);
-      this.orbiters.push({ mesh: m, r, angle, speed, incl });
-    }
-  }
-
-  _spawnEnergyWave(maxScale = 6.2, colorHex = 0xf2d8a4) {
-    const geom = new THREE.RingGeometry(0.32, 0.40, 80);
+  _spawnEnergyWave(maxScale = 5.8, colorHex = 0xf7e4ba) {
+    const geom = new THREE.RingGeometry(0.26, 0.32, 96);
     const mat = new THREE.MeshBasicMaterial({
       color: colorHex,
       transparent: true,
-      opacity: 0.58,
+      opacity: 0.56,
       side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending,
       depthWrite: false
@@ -508,7 +761,7 @@ export class CelestialMechanismScene {
     const wave = new THREE.Mesh(geom, mat);
     wave.position.copy(this.mechanismRoot.position);
     this.group.add(wave);
-    this.waves.push({ mesh: wave, age: 0, maxAge: 1.25, maxScale });
+    this.waves.push({ mesh: wave, age: 0, maxAge: 1.28, maxScale });
   }
 
   _setPhase(nextPhase) {
@@ -540,7 +793,8 @@ export class CelestialMechanismScene {
   }
 
   /**
-   * 啟動 6 階段宇宙封印機關解鎖儀式
+   * 啟動六階段精密天體封印解鎖儀式：
+   * DORMANT → ALIGNMENT → ORBIT_ROTATION → SEAL_LOCKING → ENERGY_ACTIVATION → REVELATION (→ GUIDANCE)
    */
   invokeOracle(oracleNumber, onRevealed, onPhaseChange) {
     if (this.isBusy()) return;
@@ -548,16 +802,13 @@ export class CelestialMechanismScene {
     this.sessionId++;
     this.onRevealedCallback = onRevealed;
     this.onPhaseChange = onPhaseChange;
-    this.lastTickTime = 0;
-    this.litRuneCount = 0;
-    this.lockSoundPlayed = false;
 
-    this.runePlaques.forEach((rp) => {
-      rp.lit = false;
-      rp.runeMat.emissiveIntensity = 0.04;
-    });
+    this.alignLockPlayed = false;
+    this.orbitLockPlayed = false;
+    this.sealLockPlayed = false;
 
-    this._setPhase(CELESTIAL_PHASES.AWAKENING);
+    this.outerRingStartAngle = this.outerRingGroup.rotation.z;
+    this._setPhase(CELESTIAL_PHASES.ALIGNMENT);
   }
 
   reset() {
@@ -566,27 +817,36 @@ export class CelestialMechanismScene {
     this.onPhaseChange = null;
     this.phase = CELESTIAL_PHASES.DORMANT;
     this.phaseTime = 0;
-    this.litRuneCount = 0;
-    this.lockSoundPlayed = false;
 
-    this.mechanismRoot.position.set(0, 0.04, 0);
+    this.alignLockPlayed = false;
+    this.orbitLockPlayed = false;
+    this.sealLockPlayed = false;
+
+    this.mechanismRoot.position.set(0, 0.03, 0);
     this.mechanismRoot.scale.setScalar(this.baseScale);
 
-    this.runePlaques.forEach((rp) => {
-      rp.lit = false;
-      rp.runeMat.emissiveIntensity = 0.04;
+    this.outerRingGroup.rotation.set(0, 0, this.outerRingRestAngle);
+    this.outerFaceMat.emissiveIntensity = 0.12;
+
+    this.primaryOrbitGimbal.rotation.copy(this.primaryOrbitRestEuler);
+    this.secondaryOrbitGimbal.rotation.copy(this.secondaryOrbitRestEuler);
+
+    this.sealDiscMesh.rotation.z = 0;
+    this.sealDiscMat.opacity = 0.72;
+    this.sealArcRingGroup.rotation.z = Math.PI / 6;
+    this.sealArcMat.emissiveIntensity = 0.08;
+    this.sealArcs.forEach((sa) => {
+      sa.arcMesh.position.set(0.06, 0, 0.022);
+    });
+    this.starStuds.forEach((st) => {
+      st.mat.emissiveIntensity = 0.08;
     });
 
-    this.sealClaws.forEach((sc) => {
-      sc.pivot.rotation.z = sc.baseAngle;
-      sc.clawAssembly.position.set(0, 0.31, 0.02);
-      sc.clawAssembly.rotation.set(0, 0, 0);
-    });
-
-    this.coreMat.emissiveIntensity = 0.16;
-    this.coreHaloMat.opacity = 0.20;
-    this.coreHalo.scale.set(1, 1, 1);
-    this.coreLight.intensity = 0.85;
+    this.innerSeed.scale.setScalar(1);
+    this.crystalShellMat.emissiveIntensity = 0.18;
+    this.coreGlowMat.opacity = 0.34;
+    this.coreGlowSprite.scale.setScalar(1);
+    this.coreLight.intensity = 1.0;
 
     for (let i = this.waves.length - 1; i >= 0; i--) {
       const w = this.waves[i];
@@ -599,20 +859,20 @@ export class CelestialMechanismScene {
 
   getCameraTarget() {
     switch (this.phase) {
-      case CELESTIAL_PHASES.AWAKENING:
-        return { pos: [0, 0.35, 5.85], lookAt: [0, 0.08, 0] };
-      case CELESTIAL_PHASES.ACTIVATION:
-        return { pos: [0.18, 0.52, 6.05], lookAt: [0, 0.08, 0] };
-      case CELESTIAL_PHASES.UNLOCKING:
-        // 鏡頭推近特寫中央六瓣機械鎖退栓開啟
-        return { pos: [0, 0.22, 4.95], lookAt: [0, 0.05, 0] };
+      case CELESTIAL_PHASES.ALIGNMENT:
+        return { pos: [0, 0.32, 6.25], lookAt: [0, 0.04, 0] };
+      case CELESTIAL_PHASES.ORBIT_ROTATION:
+        return { pos: [0.16, 0.44, 6.05], lookAt: [0, 0.04, 0] };
+      case CELESTIAL_PHASES.SEAL_LOCKING:
+        return { pos: [0, 0.20, 5.25], lookAt: [0, 0.03, 0] };
+      case CELESTIAL_PHASES.ENERGY_ACTIVATION:
+        return { pos: [0, 0.14, 4.95], lookAt: [0, 0.03, 0] };
       case CELESTIAL_PHASES.REVELATION:
-        return { pos: [0, 0.36, 5.55], lookAt: [0, 0.12, 0] };
+        return { pos: [0, 0.32, 5.65], lookAt: [0, 0.08, 0] };
       case CELESTIAL_PHASES.GUIDANCE:
-        // 機關退向溫暖晨光遠景上方，襯托前方展開的古紙卷軸
-        return { pos: [0, 0.58, 6.45], lookAt: [0, 0.08, 0] };
+        return { pos: [0, 0.56, 6.45], lookAt: [0, 0.08, 0] };
       default:
-        return { pos: [0, 0.48, 6.45], lookAt: [0, 0.12, 0] };
+        return { pos: [0, 0.42, 6.45], lookAt: [0, 0.06, 0] };
     }
   }
 
@@ -622,7 +882,7 @@ export class CelestialMechanismScene {
     this.phaseTime += safeDt;
     const motionMul = this.reducedMotion ? 0.3 : 1.0;
 
-    // 更新立體擴散能量波
+    // 更新能量擴散光環
     for (let i = this.waves.length - 1; i >= 0; i--) {
       const w = this.waves[i];
       w.age += safeDt;
@@ -636,187 +896,176 @@ export class CelestialMechanismScene {
         const ease = 1 - Math.pow(1 - p, 3);
         const s = 1 + ease * w.maxScale;
         w.mesh.scale.set(s, s, 1);
-        w.mesh.material.opacity = (1 - p) * (1 - p) * 0.52;
+        w.mesh.material.opacity = (1 - p) * (1 - p) * 0.54;
       }
     }
 
-    // 軌道星體運行
-    const orbBoost =
-      this.phase === CELESTIAL_PHASES.ACTIVATION
-        ? 3.4
-        : this.phase === CELESTIAL_PHASES.UNLOCKING
-        ? 1.8
-        : 1.0;
-    this.orbiters.forEach((o) => {
-      o.angle += safeDt * o.speed * orbBoost * motionMul;
-      o.mesh.position.set(
-        Math.cos(o.angle) * o.r,
-        Math.sin(o.angle * 2) * o.incl * 0.55,
-        Math.sin(o.angle) * o.r
-      );
-    });
-
-    // 1. DORMANT：沉睡微光呼吸，六瓣機械鎖緊閉
+    // 1. DORMANT：外環與中央封印靜止沉睡（絕不全部零件一直旋轉），僅天體軌道極緩微移、核心輕柔呼吸
     if (this.phase === CELESTIAL_PHASES.DORMANT) {
       this.mechanismRoot.position.y = THREE.MathUtils.lerp(
         this.mechanismRoot.position.y,
-        0.04 + Math.sin(this.elapsed * 0.85) * 0.045 * motionMul,
+        0.03 + Math.sin(this.elapsed * 0.75) * 0.035 * motionMul,
         safeDt * 3
       );
       this.mechanismRoot.position.z = THREE.MathUtils.lerp(this.mechanismRoot.position.z, 0, safeDt * 3);
       const s = THREE.MathUtils.lerp(this.mechanismRoot.scale.x, this.baseScale, safeDt * 3);
       this.mechanismRoot.scale.setScalar(s);
 
-      this.outerGearGroup.rotation.z += safeDt * 0.045 * motionMul;
-      this.runeBandGroup.rotation.z -= safeDt * 0.065 * motionMul;
-      this.geometryGimbal.rotation.y += safeDt * 0.09 * motionMul;
-      this.starFrameGroup.rotation.z -= safeDt * 0.05 * motionMul;
+      // 僅天體軌道維持極緩慢星體微動，外環與封印保持莊嚴靜止
+      this.primaryOrbitGimbal.rotation.y += safeDt * 0.032 * motionMul;
+      this.secondaryOrbitGimbal.rotation.x -= safeDt * 0.024 * motionMul;
+      this.innerStarMesh.rotation.z += safeDt * 0.08 * motionMul;
 
-      const breath = 0.14 + Math.sin(this.elapsed * 1.6) * 0.05;
-      this.coreMat.emissiveIntensity = breath;
-      this.coreHaloMat.opacity = 0.16 + Math.sin(this.elapsed * 1.6) * 0.04;
-      this.coreLight.intensity = 0.75;
+      const breath = 0.5 + 0.5 * Math.sin(this.elapsed * 1.5);
+      this.crystalShellMat.emissiveIntensity = 0.14 + breath * 0.08;
+      this.coreGlowMat.opacity = 0.28 + breath * 0.08;
+      this.coreLight.intensity = 0.9 + breath * 0.2;
       return;
     }
 
-    // 2. AWAKENING（1.05s）：12 枚古代星宿符文依序逐一亮起，神聖幾何骨架顯現微光
-    if (this.phase === CELESTIAL_PHASES.AWAKENING) {
+    // 2. ALIGNMENT（1.08s）：
+    //    因果第一步 — 外圍主環（定位結構）甦醒點亮十二星宿蝕刻符文，沉穩旋轉對準四方基準指針並鎖定停止！
+    if (this.phase === CELESTIAL_PHASES.ALIGNMENT) {
       const dur = this.reducedMotion ? 0.42 : 1.08;
       const p = Math.min(1, this.phaseTime / dur);
+      // 具金屬慣性的平滑啟停曲線
+      const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
 
-      const targetLit = Math.min(12, Math.floor(p * 13));
-      while (this.litRuneCount < targetLit) {
-        const idx = this.litRuneCount;
-        if (this.runePlaques[idx]) {
-          this.runePlaques[idx].lit = true;
-          ritualSound.playRuneIgnite(idx);
-        }
-        this.litRuneCount++;
-      }
+      this.outerRingGroup.rotation.z = THREE.MathUtils.lerp(this.outerRingStartAngle, 0, ease);
+      this.outerFaceMat.emissiveIntensity = THREE.MathUtils.lerp(0.04, 0.92, ease);
 
-      this.runePlaques.forEach((rp) => {
-        const goal = rp.lit ? 1.35 : 0.04;
-        rp.runeMat.emissiveIntensity = THREE.MathUtils.lerp(rp.runeMat.emissiveIntensity, goal, safeDt * 12);
-      });
-
-      this.sacredStarMat.emissiveIntensity = THREE.MathUtils.lerp(0.04, 0.42, p);
-      this.paleJadeMat.emissiveIntensity = THREE.MathUtils.lerp(0.05, 0.32, p);
-      this.outerGearGroup.rotation.z -= safeDt * 0.12;
-      this.runeBandGroup.rotation.z += safeDt * 0.25;
-
-      this.coreMat.emissiveIntensity = THREE.MathUtils.lerp(0.16, 0.55, p);
-      this.coreHaloMat.opacity = THREE.MathUtils.lerp(0.18, 0.42, p);
-      this.coreLight.intensity = THREE.MathUtils.lerp(0.85, 2.2, p);
-
-      if (p >= 1) {
-        ritualSound.playSilkSweep();
-        this._setPhase(CELESTIAL_PHASES.ACTIVATION);
-      }
-      return;
-    }
-
-    // 3. ACTIVATION（1.35s）：多層機構各自以不同軸向、方向與慣性高速運轉
-    if (this.phase === CELESTIAL_PHASES.ACTIVATION) {
-      const dur = this.reducedMotion ? 0.52 : 1.38;
-      const p = Math.min(1, this.phaseTime / dur);
-      const env = Math.sin(p * Math.PI);
-
-      // 外層齒輪穩重順轉、符文環斜向逆轉、天球骨架立體翻旋、中央鎖座蓄勢微轉
-      this.outerGearGroup.rotation.z += safeDt * (0.45 + env * 1.45);
-      this.outerGearGroup.rotation.x += safeDt * (0.18 + env * 0.55);
-
-      this.runeBandGroup.rotation.z -= safeDt * (0.75 + env * 2.45);
-      this.runeBandGroup.rotation.y += safeDt * (0.35 + env * 1.15);
-
-      this.geometryGimbal.rotation.x -= safeDt * (0.95 + env * 2.8);
-      this.geometryGimbal.rotation.y += safeDt * (1.15 + env * 3.1);
-      this.starFrameGroup.rotation.z += safeDt * (1.2 + env * 2.6);
-
-      this.irisLockGroup.rotation.z -= safeDt * (0.35 + env * 0.9);
-      this.coreMesh.rotation.y += safeDt * 3.2;
-      this.coreWire.rotation.x -= safeDt * 2.6;
-
-      this.coreMat.emissiveIntensity = 0.55 + env * 0.65;
-      this.coreLight.intensity = 2.2 + env * 2.0;
-
-      if (this.phaseTime - this.lastTickTime > 0.14 && env > 0.25) {
-        this.lastTickTime = this.phaseTime;
-        ritualSound.playBambooClack(0.28 + env * 0.35);
-      }
-
-      if (p >= 1) {
-        this._setPhase(CELESTIAL_PHASES.UNLOCKING);
-      }
-      return;
-    }
-
-    // 4. UNLOCKING（1.18s）：
-    //    前段 (0 ~ 0.48)：多層圓環互相咬合共面對齊（咔噠定位）
-    //    後段 (0.35 ~ 1.0)：中央 6 片玉金機械鎖瓣旋轉退栓並向外滑開，揭露璀璨星核！
-    if (this.phase === CELESTIAL_PHASES.UNLOCKING) {
-      const dur = this.reducedMotion ? 0.48 : 1.18;
-      const p = Math.min(1, this.phaseTime / dur);
-
-      // 各層圓環收斂對齊至莊嚴共面角度
-      const qOuter = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.10, 0, 0));
-      const qRune = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.08, 0.06, 0));
-      const qGimbal = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.06, -0.06, 0));
-
-      this.outerGearGroup.quaternion.slerp(qOuter, Math.min(1, safeDt * 5.8));
-      this.runeBandGroup.quaternion.slerp(qRune, Math.min(1, safeDt * 6.4));
-      this.geometryGimbal.quaternion.slerp(qGimbal, Math.min(1, safeDt * 7.2));
-      this.starFrameGroup.rotation.z = THREE.MathUtils.lerp(this.starFrameGroup.rotation.z, 0, Math.min(1, safeDt * 6));
-
-      if (p >= 0.34 && !this.lockSoundPlayed) {
-        this.lockSoundPlayed = true;
+      if (p >= 0.90 && !this.alignLockPlayed) {
+        this.alignLockPlayed = true;
         ritualSound.playMechanismLock();
-        this._spawnEnergyWave(3.2, 0xe8d09c);
       }
 
-      // 中央六瓣機械鎖退栓與徑向滑開
-      const unlatchP = Math.max(0, Math.min(1, (p - 0.28) / 0.72));
-      const unlatchEase = 1 - Math.pow(1 - unlatchP, 3);
+      if (p >= 1) {
+        // 外環精準鎖定於 0.000 rad，後續階段保持定位不動
+        this.outerRingGroup.rotation.z = 0;
+        this.orbitStartQuat1 = this.primaryOrbitGimbal.quaternion.clone();
+        this.orbitStartQuat2 = this.secondaryOrbitGimbal.quaternion.clone();
+        ritualSound.playSilkSweep();
+        this._setPhase(CELESTIAL_PHASES.ORBIT_ROTATION);
+      }
+      return;
+    }
 
-      this.sealClaws.forEach((sc) => {
-        // 先微旋 15° 退開卡榫，同時向外滑開至半徑 0.66 並向外微翻 24°
-        sc.pivot.rotation.z = sc.baseAngle + unlatchEase * 0.26;
-        sc.clawAssembly.position.y = THREE.MathUtils.lerp(0.31, 0.66, unlatchEase);
-        sc.clawAssembly.position.z = THREE.MathUtils.lerp(0.02, 0.10, unlatchEase);
-        sc.clawAssembly.rotation.x = -0.42 * unlatchEase;
-      });
+    // 3. ORBIT_ROTATION（1.28s）：
+    //    因果第二步 — 外環定位完成後釋放雙天體軌道（旋轉結構），兩組軌道以不同傾角與方向交錯運行並對位停穩！
+    if (this.phase === CELESTIAL_PHASES.ORBIT_ROTATION) {
+      const dur = this.reducedMotion ? 0.48 : 1.28;
+      const p = Math.min(1, this.phaseTime / dur);
 
-      this.coreMesh.rotation.y += safeDt * 2.8;
-      this.coreMat.emissiveIntensity = THREE.MathUtils.lerp(0.9, 1.85, unlatchEase);
-      this.coreHaloMat.opacity = THREE.MathUtils.lerp(0.45, 0.92, unlatchEase);
-      const haloScale = 1 + unlatchEase * 0.85;
-      this.coreHalo.scale.set(haloScale, haloScale, 1);
-      this.coreLight.intensity = THREE.MathUtils.lerp(3.2, 5.8, unlatchEase);
+      if (p < 0.68) {
+        const spinEnv = Math.sin((p / 0.68) * Math.PI);
+        this.primaryOrbitGimbal.rotation.y += safeDt * (0.8 + spinEnv * 3.2);
+        this.primaryOrbitGimbal.rotation.z += safeDt * (0.4 + spinEnv * 1.4);
+        this.secondaryOrbitGimbal.rotation.x -= safeDt * (0.9 + spinEnv * 3.5);
+        this.secondaryOrbitGimbal.rotation.y -= safeDt * (0.5 + spinEnv * 1.6);
+        this.orbitLockStart1 = this.primaryOrbitGimbal.quaternion.clone();
+        this.orbitLockStart2 = this.secondaryOrbitGimbal.quaternion.clone();
+      } else {
+        // 後半程平順減速對位至和諧傾角並鎖定
+        const alignP = (p - 0.68) / 0.32;
+        const alignEase = 1 - Math.pow(1 - alignP, 3);
+        this.primaryOrbitGimbal.quaternion.copy(this.orbitLockStart1).slerp(this.primaryOrbitAlignQuat, alignEase);
+        this.secondaryOrbitGimbal.quaternion.copy(this.orbitLockStart2).slerp(this.secondaryOrbitAlignQuat, alignEase);
+      }
+
+      if (p >= 0.92 && !this.orbitLockPlayed) {
+        this.orbitLockPlayed = true;
+        ritualSound.playMechanismLock();
+      }
 
       if (p >= 1) {
-        this._spawnEnergyWave(6.8, 0xfff0cc);
-        this._spawnEnergyWave(4.4, 0xc8daf4);
+        this.primaryOrbitGimbal.quaternion.copy(this.primaryOrbitAlignQuat);
+        this.secondaryOrbitGimbal.quaternion.copy(this.secondaryOrbitAlignQuat);
+        this._setPhase(CELESTIAL_PHASES.SEAL_LOCKING);
+      }
+      return;
+    }
+
+    // 4. SEAL_LOCKING（0.96s）：
+    //    因果第三步 — 軌道對位完成後傳導至中央封印（鎖定結構），星盤旋正 60° 且六段同心金弧向內收束咬合鎖定！
+    if (this.phase === CELESTIAL_PHASES.SEAL_LOCKING) {
+      const dur = this.reducedMotion ? 0.38 : 0.96;
+      const p = Math.min(1, this.phaseTime / dur);
+      const ease = 1 - Math.pow(1 - p, 3);
+
+      // 外環與天體軌道皆維持鎖定靜止，視覺完全聚焦於中央封印收束
+      this.sealDiscMesh.rotation.z = ease * (Math.PI / 3);
+      this.sealArcRingGroup.rotation.z = THREE.MathUtils.lerp(Math.PI / 6, 0, ease);
+
+      // 六段圓弧由外 (0.06) 向中心收束至 0.00，密合成一道完整連續金環
+      this.sealArcs.forEach((sa) => {
+        sa.arcMesh.position.x = THREE.MathUtils.lerp(0.06, 0.0, ease);
+      });
+      this.sealArcMat.emissiveIntensity = THREE.MathUtils.lerp(0.08, 0.72, ease);
+
+      // 六枚四角星鑲釘依序點亮定位
+      const litCount = Math.floor(p * 6.5);
+      this.starStuds.forEach((st, idx) => {
+        const targetEm = idx <= litCount ? 0.95 : 0.08;
+        st.mat.emissiveIntensity = THREE.MathUtils.lerp(st.mat.emissiveIntensity, targetEm, safeDt * 14);
+      });
+
+      if (p >= 0.88 && !this.sealLockPlayed) {
+        this.sealLockPlayed = true;
+        ritualSound.playMechanismLock();
+        ritualSound.playRuneIgnite(5);
+      }
+
+      if (p >= 1) {
+        this._setPhase(CELESTIAL_PHASES.ENERGY_ACTIVATION);
+      }
+      return;
+    }
+
+    // 5. ENERGY_ACTIVATION（0.92s）：
+    //    因果第四步 — 全部機械環件保持靜謐鎖定，能量沿中央 36 道放射刻線向透光核心匯聚蓄滿！
+    if (this.phase === CELESTIAL_PHASES.ENERGY_ACTIVATION) {
+      const dur = this.reducedMotion ? 0.35 : 0.92;
+      const p = Math.min(1, this.phaseTime / dur);
+      const ease = p * p * (3 - 2 * p);
+
+      this.sealDiscMat.opacity = THREE.MathUtils.lerp(0.72, 1.0, ease);
+      this.innerStarMesh.rotation.z += safeDt * (1.2 + ease * 3.8);
+
+      const seedScale = 1 + ease * 0.42;
+      this.innerSeed.scale.setScalar(seedScale);
+      this.crystalShellMat.emissiveIntensity = THREE.MathUtils.lerp(0.24, 1.45, ease);
+      this.coreGlowMat.opacity = THREE.MathUtils.lerp(0.38, 0.95, ease);
+      const glowScale = 1 + ease * 0.65;
+      this.coreGlowSprite.scale.setScalar(glowScale);
+      this.coreLight.intensity = THREE.MathUtils.lerp(1.4, 5.2, ease);
+
+      if (p >= 1) {
+        this._spawnEnergyWave(6.4, 0xfff3d4);
+        this._spawnEnergyWave(4.0, 0xe8cfa0);
         ritualSound.playChime('sacred');
         if (typeof this.onImpactCallback === 'function') {
-          this.onImpactCallback(0.048);
+          this.onImpactCallback(0.042);
         }
         this._setPhase(CELESTIAL_PHASES.REVELATION);
       }
       return;
     }
 
-    // 5. REVELATION（0.88s）：封印核心能量向四方綻放擴散，天光破曉回暖
+    // 6. REVELATION（0.90s）：
+    //    因果最終幕 — 中央六段同心金弧優雅向外舒展開啟 (0.00 -> 0.13)，核心光芒由中心向外擴散，天光破曉！
     if (this.phase === CELESTIAL_PHASES.REVELATION) {
-      const dur = this.reducedMotion ? 0.32 : 0.88;
+      const dur = this.reducedMotion ? 0.34 : 0.90;
       const p = Math.min(1, this.phaseTime / dur);
+      const openEase = 1 - Math.pow(1 - p, 3);
 
-      this.mechanismRoot.position.y = THREE.MathUtils.lerp(this.mechanismRoot.position.y, 0.58, safeDt * 3.2);
-      this.coreMesh.rotation.y += safeDt * 1.4;
-      this.starFrameGroup.rotation.z += safeDt * 0.25;
+      this.sealArcs.forEach((sa) => {
+        sa.arcMesh.position.x = THREE.MathUtils.lerp(0.0, 0.135, openEase);
+      });
 
-      const burstFade = 1 - p * 0.45;
-      this.coreMat.emissiveIntensity = 1.85 * burstFade;
-      this.coreHaloMat.opacity = 0.92 * burstFade;
-      this.coreLight.intensity = THREE.MathUtils.lerp(5.8, 2.4, p);
+      this.innerStarMesh.rotation.z += safeDt * 1.4;
+      this.crystalShellMat.emissiveIntensity = THREE.MathUtils.lerp(1.45, 0.65, p);
+      this.coreGlowMat.opacity = THREE.MathUtils.lerp(0.95, 0.55, p);
+      this.coreLight.intensity = THREE.MathUtils.lerp(5.2, 2.2, p);
 
       if (p >= 1) {
         this._setPhase(CELESTIAL_PHASES.GUIDANCE);
@@ -829,20 +1078,18 @@ export class CelestialMechanismScene {
       return;
     }
 
-    // 6. GUIDANCE：已解封的精密天體機關退居溫暖晨曦遠景上方緩慢運轉，守護卷軸指引
+    // 7. GUIDANCE：解封後的天體封印優雅退居溫暖晨曦遠景，靜靜襯托古紙籤卷而不碰觸上方標題
     if (this.phase === CELESTIAL_PHASES.GUIDANCE) {
-      this.mechanismRoot.position.y = THREE.MathUtils.lerp(this.mechanismRoot.position.y, 1.38, safeDt * 2.6);
-      this.mechanismRoot.position.z = THREE.MathUtils.lerp(this.mechanismRoot.position.z, -1.95, safeDt * 2.6);
-      const s = THREE.MathUtils.lerp(this.mechanismRoot.scale.x, 0.58, safeDt * 2.6);
+      this.mechanismRoot.position.y = THREE.MathUtils.lerp(this.mechanismRoot.position.y, 0.56, safeDt * 2.6);
+      this.mechanismRoot.position.z = THREE.MathUtils.lerp(this.mechanismRoot.position.z, -2.15, safeDt * 2.6);
+      const s = THREE.MathUtils.lerp(this.mechanismRoot.scale.x, 0.50, safeDt * 2.6);
       this.mechanismRoot.scale.setScalar(s);
 
-      this.outerGearGroup.rotation.z += safeDt * 0.05 * motionMul;
-      this.runeBandGroup.rotation.z -= safeDt * 0.07 * motionMul;
-      this.starFrameGroup.rotation.z += safeDt * 0.06 * motionMul;
-      this.coreMesh.rotation.y += safeDt * 0.35 * motionMul;
-
-      this.coreMat.emissiveIntensity = THREE.MathUtils.lerp(this.coreMat.emissiveIntensity, 0.45, safeDt * 2.5);
-      this.coreHaloMat.opacity = THREE.MathUtils.lerp(this.coreHaloMat.opacity, 0.35, safeDt * 2.5);
+      this.primaryOrbitGimbal.rotation.y += safeDt * 0.04 * motionMul;
+      this.innerStarMesh.rotation.z += safeDt * 0.25 * motionMul;
+      this.outerFaceMat.emissiveIntensity = THREE.MathUtils.lerp(this.outerFaceMat.emissiveIntensity, 0.28, safeDt * 2.5);
+      this.crystalShellMat.emissiveIntensity = THREE.MathUtils.lerp(this.crystalShellMat.emissiveIntensity, 0.38, safeDt * 2.5);
+      this.coreGlowMat.opacity = THREE.MathUtils.lerp(this.coreGlowMat.opacity, 0.38, safeDt * 2.5);
       this.coreLight.intensity = THREE.MathUtils.lerp(this.coreLight.intensity, 1.5, safeDt * 2.5);
     }
   }

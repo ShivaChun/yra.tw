@@ -340,7 +340,7 @@
                         ref={rowRef}
                         className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6 w-full max-w-4xl"
                     >
-                        {/* Portal A：擲筊 · Divine Response */}
+                        {/* Portal A：擲筊 · Divine Response（台灣傳統朱紅木製月牙筊杯，一凸一平三分之四立體視角） */}
                         <div
                             role="button"
                             tabIndex={0}
@@ -352,32 +352,104 @@
                             <div className="relative w-40 h-40 flex items-center justify-center mb-4">
                                 <svg viewBox="0 0 180 180" className="w-full h-full overflow-visible">
                                     <defs>
-                                        <linearGradient id="lacquerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                            <stop offset="0%" stopColor="#b84a3e" />
-                                            <stop offset="55%" stopColor="#8d2d24" />
-                                            <stop offset="100%" stopColor="#5c1913" />
+                                        {/* 陰面（圓弧凸面）：深潤亮面朱紅木漆漸層 */}
+                                        <linearGradient id="jiaobeiDomeGrad" x1="15%" y1="0%" x2="85%" y2="100%">
+                                            <stop offset="0%" stopColor="#d63024" />
+                                            <stop offset="42%" stopColor="#ad1d14" />
+                                            <stop offset="82%" stopColor="#7a110b" />
+                                            <stop offset="100%" stopColor="#540a06" />
                                         </linearGradient>
-                                        <linearGradient id="woodFaceGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                                            <stop offset="0%" stopColor="#d2ba95" />
-                                            <stop offset="50%" stopColor="#efe0c4" />
-                                            <stop offset="100%" stopColor="#c7ab80" />
+                                        {/* 陽面（平剖木面）：溫潤霧感淺朱紅實木漸層 */}
+                                        <linearGradient id="jiaobeiFlatGrad" x1="0%" y1="15%" x2="100%" y2="85%">
+                                            <stop offset="0%" stopColor="#d84335" />
+                                            <stop offset="48%" stopColor="#ea594a" />
+                                            <stop offset="100%" stopColor="#c23326" />
                                         </linearGradient>
+                                        {/* 陽面下方外露之立體圓弧木頭厚度層 */}
+                                        <linearGradient id="jiaobeiBellySideGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                            <stop offset="0%" stopColor="#941811" />
+                                            <stop offset="60%" stopColor="#6b0e09" />
+                                            <stop offset="100%" stopColor="#460804" />
+                                        </linearGradient>
+                                        {/* 柔和立體落地投影 */}
+                                        <filter id="jiaobeiSoftShadow" x="-25%" y="-25%" width="150%" height="160%">
+                                            <feDropShadow dx="0" dy="6" stdDeviation="4.5" floodColor="#3d1812" floodOpacity="0.24" />
+                                        </filter>
                                     </defs>
-                                    {/* 喚醒漣漪光環 */}
-                                    <g className="portal-halo-ring opacity-65">
-                                        <circle cx="90" cy="94" r="58" fill="none" stroke="#c8a46b" strokeWidth="1" strokeDasharray="3 4" />
-                                        <circle cx="90" cy="94" r="44" fill="rgba(223,193,141,0.14)" stroke="#c8a46b" strokeWidth="0.8" />
+
+                                    {/* 香檳金裝飾細圓環 */}
+                                    <g className="portal-halo-ring opacity-70">
+                                        <circle cx="90" cy="92" r="60" fill="none" stroke="#c8a46b" strokeWidth="0.95" strokeDasharray="3 4" />
+                                        <circle cx="90" cy="92" r="46" fill="rgba(223,193,141,0.13)" stroke="#c8a46b" strokeWidth="0.8" />
                                     </g>
-                                    {/* 左瓣：立體硃砂紅漆凸面筊杯 */}
-                                    <g className="portal-moon-left">
-                                        <path d="M40 116 C36 78, 62 50, 92 54 C74 72, 68 96, 76 122 C60 125, 45 122, 40 116 Z" fill="#4e1510" transform="translate(0, 5)" />
-                                        <path d="M40 116 C36 78, 62 50, 92 54 C74 72, 68 96, 76 122 C60 125, 45 122, 40 116 Z" fill="url(#lacquerGrad)" stroke="#e6cca0" strokeWidth="0.9" />
-                                        <path d="M48 106 C47 82, 62 63, 80 61" fill="none" stroke="rgba(255,238,220,0.45)" strokeWidth="2.2" strokeLinecap="round" />
+
+                                    {/* 左上方獨立筊杯：陰面（圓弧凸面朝上，飽滿月牙形與背脊溫潤木漆高光） */}
+                                    <g className="portal-moon-left" filter="url(#jiaobeiSoftShadow)">
+                                        <g transform="translate(66, 75) rotate(-32)">
+                                            {/* 底部圓潤實木厚邊 */}
+                                            <path
+                                                d="M -44 6 Q -46.5 6.5 -44.5 4 C -24 -27, 24 -27, 44.5 4 Q 46.5 6.5 44 6 C 20 -1.5, -20 -1.5, -44 6 Z"
+                                                fill="#540905"
+                                                transform="translate(0.8, 3.6)"
+                                            />
+                                            {/* 飽滿月牙形圓弧凸面主體 */}
+                                            <path
+                                                d="M -44 6 Q -46.5 6.5 -44.5 4 C -24 -27, 24 -27, 44.5 4 Q 46.5 6.5 44 6 C 20 -1.5, -20 -1.5, -44 6 Z"
+                                                fill="url(#jiaobeiDomeGrad)"
+                                                stroke="#6e0e09"
+                                                strokeWidth="0.6"
+                                            />
+                                            {/* 圓弧凸背立體木漆反光脊線 */}
+                                            <path
+                                                d="M -32 -1 C -13 -18, 13 -18, 32 -1"
+                                                fill="none"
+                                                stroke="rgba(255, 228, 212, 0.56)"
+                                                strokeWidth="3.0"
+                                                strokeLinecap="round"
+                                            />
+                                            <path
+                                                d="M -21 -6.5 C -7 -15, 7 -15, 21 -6.5"
+                                                fill="none"
+                                                stroke="rgba(255, 246, 240, 0.38)"
+                                                strokeWidth="1.2"
+                                                strokeLinecap="round"
+                                            />
+                                        </g>
                                     </g>
-                                    {/* 右瓣：立體溫潤原木平面筊杯（含立體側邊厚度） */}
-                                    <g className="portal-moon-right">
-                                        <path d="M140 116 C144 78, 118 50, 88 54 C106 72, 112 96, 104 122 C120 125, 135 122, 140 116 Z" fill="#8b2e25" transform="translate(0, 6)" />
-                                        <path d="M140 116 C144 78, 118 50, 88 54 C106 72, 112 96, 104 122 C120 125, 135 122, 140 116 Z" fill="url(#woodFaceGrad)" stroke="#9e3d33" strokeWidth="1.4" />
+
+                                    {/* 右下方獨立筊杯：陽面（平整月牙木面朝上＋平行實木側邊厚度，對標傳統紅木筊杯實拍） */}
+                                    <g className="portal-moon-right" filter="url(#jiaobeiSoftShadow)">
+                                        <g transform="translate(112, 112) rotate(-20)">
+                                            {/* 平行月牙實木側邊立體厚度（維持純粹彎月外輪廓，絕不變形為杏仁或拱門） */}
+                                            <path
+                                                d="M -44 6 Q -46.5 6.5 -44.5 4 C -24 -26, 24 -26, 44.5 4 Q 46.5 6.5 44 6 C 20 -1.2, -20 -1.2, -44 6 Z"
+                                                fill="url(#jiaobeiBellySideGrad)"
+                                                transform="translate(1.2, 4.4)"
+                                            />
+                                            {/* 陽面平整朱紅木紋切面（邊緣俐落倒角高光，與左上圓凸面形成清晰對比） */}
+                                            <path
+                                                d="M -44 6 Q -46.5 6.5 -44.5 4 C -24 -26, 24 -26, 44.5 4 Q 46.5 6.5 44 6 C 20 -1.2, -20 -1.2, -44 6 Z"
+                                                fill="url(#jiaobeiFlatGrad)"
+                                                stroke="#f6a896"
+                                                strokeOpacity="0.65"
+                                                strokeWidth="0.9"
+                                            />
+                                            {/* 平剖面縱向自然實木細紋 */}
+                                            <path
+                                                d="M -29 -2.5 C -10 -10.5, 10 -10.5, 29 -2.5"
+                                                fill="none"
+                                                stroke="rgba(128, 20, 14, 0.22)"
+                                                strokeWidth="0.95"
+                                                strokeLinecap="round"
+                                            />
+                                            <path
+                                                d="M -35 1.8 C -12 -4.2, 12 -4.2, 35 1.8"
+                                                fill="none"
+                                                stroke="rgba(255, 216, 200, 0.34)"
+                                                strokeWidth="0.9"
+                                                strokeLinecap="round"
+                                            />
+                                        </g>
                                     </g>
                                 </svg>
                             </div>
@@ -1562,16 +1634,17 @@
         };
 
         // =====================================================================
-        // 3. 靈籤 · 宇宙指引元件 (RandomGuide) — Celestial Mechanism 六階段天體封印機關
-        //    流程：DORMANT → AWAKENING → ACTIVATION → UNLOCKING → REVELATION → GUIDANCE
+        // 3. 靈籤 · 宇宙指引元件 (RandomGuide) — Elegant Celestial Mechanism 精密天體封印機關
+        //    流程：DORMANT → ALIGNMENT → ORBIT_ROTATION → SEAL_LOCKING → ENERGY_ACTIVATION → REVELATION (→ GUIDANCE)
         //    嚴格保留既有 15 則指引資料與均勻隨機抽取邏輯
         // =====================================================================
         const CELESTIAL_PHASE_LABELS = {
-            DORMANT: '古老天體封印靜候中，輕觸喚醒十二星宿符文',
-            AWAKENING: '十二星宿符文逐一甦醒點亮⋯',
-            ACTIVATION: '多層周天齒輪與星軌反向運轉共鳴⋯',
-            UNLOCKING: '星環咬合對齊，中央六瓣玉鎖退栓開啟⋯',
-            REVELATION: '封印核心能量綻放，天光破曉⋯',
+            DORMANT: '古老天體封印靜候中，輕觸啟動星盤對位',
+            ALIGNMENT: '外圍主環甦醒，十二星宿刻度旋轉定位⋯',
+            ORBIT_ROTATION: '雙層天體軌道交錯運行，完成星象對位⋯',
+            SEAL_LOCKING: '中央幾何封印收束咬合，鎖定星核⋯',
+            ENERGY_ACTIVATION: '星芒能量向透光核心匯聚凝結⋯',
+            REVELATION: '中央封印開啟，光芒由核心向外綻放⋯',
             GUIDANCE: '天機已現，細品古卷中的溫柔指引'
         };
 
@@ -1687,8 +1760,8 @@
                 if (isBusy) return;
 
                 const mySession = ++sessionRef.current;
-                setPhase("AWAKENING");
-                // 啟動機關：柔和轉入深邃星夜，凸顯 12 符文點亮與六瓣鎖開啟光效
+                setPhase("ALIGNMENT");
+                // 啟動機關：柔和轉入深邃星夜，凸顯金屬星盤蝕刻與透光星核光影
                 setStageSceneTone('dusk');
 
                 // 既有均勻隨機抽取邏輯（100% 嚴格保留）
@@ -1724,7 +1797,7 @@
                     setFallbackMode(true);
                     fallbackTimerRef.current = setTimeout(() => {
                         if (sessionRef.current !== mySession) return;
-                        setPhase("ACTIVATION");
+                        setPhase("ORBIT_ROTATION");
                         fallbackTimerRef.current = setTimeout(onRevealed, 950);
                     }, 450);
                 }
@@ -1802,7 +1875,7 @@
                     <div className="flex flex-col items-center gap-3.5">
                         {isBusy && (
                             <div className="flex items-center gap-1.5">
-                                {['AWAKENING', 'ACTIVATION', 'UNLOCKING', 'REVELATION'].map((step) => (
+                                {['ALIGNMENT', 'ORBIT_ROTATION', 'SEAL_LOCKING', 'ENERGY_ACTIVATION', 'REVELATION'].map((step) => (
                                     <span
                                         key={step}
                                         className={`h-1 rounded-full transition-all duration-300 ${

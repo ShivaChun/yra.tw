@@ -24,7 +24,7 @@ export const BLOCK_PHASES = Object.freeze({
 });
 
 /**
- * 程式化生成硃砂漆木紋理（凸面 / 陰面）
+ * 程式化生成傳統朱紅大漆木紋理（凸面 / 陰面：深潤亮面朱紅木漆）
  */
 function createLacquerTexture() {
   const canvas = document.createElement('canvas');
@@ -33,32 +33,31 @@ function createLacquerTexture() {
   const ctx = canvas.getContext('2d');
 
   const grad = ctx.createLinearGradient(0, 0, 512, 512);
-  grad.addColorStop(0, '#78221a');
-  grad.addColorStop(0.38, '#9e3329');
-  grad.addColorStop(0.72, '#731e17');
-  grad.addColorStop(1, '#4c110d');
+  grad.addColorStop(0, '#9e1c14');
+  grad.addColorStop(0.38, '#c2291f');
+  grad.addColorStop(0.72, '#8f1710');
+  grad.addColorStop(1, '#5e0d08');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 512, 512);
 
-  // 細膩大漆木胎年輪暗紋
-  for (let i = 0; i < 180; i++) {
+  // 細膩紅木縱向年輪木紋
+  for (let i = 0; i < 190; i++) {
     const y = Math.random() * 512;
-    ctx.strokeStyle = i % 2 === 0 ? 'rgba(30, 5, 3, 0.18)' : 'rgba(225, 138, 110, 0.08)';
+    ctx.strokeStyle = i % 2 === 0 ? 'rgba(42, 4, 2, 0.18)' : 'rgba(255, 162, 138, 0.09)';
     ctx.lineWidth = Math.random() * 2.0 + 0.45;
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.bezierCurveTo(
-      170, y + (Math.random() - 0.5) * 20,
-      340, y + (Math.random() - 0.5) * 20,
-      512, y + (Math.random() - 0.5) * 10
+      170, y + (Math.random() - 0.5) * 18,
+      340, y + (Math.random() - 0.5) * 18,
+      512, y + (Math.random() - 0.5) * 8
     );
     ctx.stroke();
   }
 
-  // 邊緣手作包漿微暗角
-  const rad = ctx.createRadialGradient(256, 256, 90, 256, 256, 340);
-  rad.addColorStop(0, 'rgba(255, 195, 160, 0.06)');
-  rad.addColorStop(1, 'rgba(20, 3, 2, 0.34)');
+  const rad = ctx.createRadialGradient(256, 256, 80, 256, 256, 340);
+  rad.addColorStop(0, 'rgba(255, 208, 185, 0.08)');
+  rad.addColorStop(1, 'rgba(28, 3, 2, 0.30)');
   ctx.fillStyle = rad;
   ctx.fillRect(0, 0, 512, 512);
 
@@ -68,7 +67,8 @@ function createLacquerTexture() {
 }
 
 /**
- * 程式化生成溫潤竹頭／原木剖面紋理（平面 / 陽面）
+ * 程式化生成傳統民俗朱紅木筊「平面／陽面」漆木剖面紋理
+ * （對標台灣傳統木製紅筊：平面同為溫潤朱紅木色，具清晰縱向木紋刷痕與較淺霧感色澤，與深亮凸面一眼可辨）
  */
 function createRawWoodTexture() {
   const canvas = document.createElement('canvas');
@@ -77,30 +77,30 @@ function createRawWoodTexture() {
   const ctx = canvas.getContext('2d');
 
   const grad = ctx.createLinearGradient(0, 0, 512, 0);
-  grad.addColorStop(0, '#c6ad87');
-  grad.addColorStop(0.5, '#e5d2af');
-  grad.addColorStop(1, '#be9f75');
+  grad.addColorStop(0, '#c8392d');
+  grad.addColorStop(0.5, '#e24f40');
+  grad.addColorStop(1, '#bd3327');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 512, 512);
 
-  // 竹根／老木縱向纖維細絲
-  for (let i = 0; i < 240; i++) {
+  // 真實木頭切削紋理與淡暖木胎底紋刷痕
+  for (let i = 0; i < 260; i++) {
     const y = Math.random() * 512;
-    ctx.strokeStyle = i % 3 === 0 ? 'rgba(120, 78, 40, 0.19)' : 'rgba(255, 246, 228, 0.15)';
-    ctx.lineWidth = Math.random() * 1.7 + 0.35;
+    ctx.strokeStyle = i % 3 === 0 ? 'rgba(115, 20, 14, 0.22)' : 'rgba(255, 205, 182, 0.18)';
+    ctx.lineWidth = Math.random() * 1.9 + 0.4;
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.bezierCurveTo(
-      180, y + (Math.random() - 0.5) * 12,
-      340, y + (Math.random() - 0.5) * 12,
-      512, y + (Math.random() - 0.5) * 6
+      180, y + (Math.random() - 0.5) * 11,
+      340, y + (Math.random() - 0.5) * 11,
+      512, y + (Math.random() - 0.5) * 5
     );
     ctx.stroke();
   }
 
-  // 邊緣硃砂漆滲染收邊
-  ctx.strokeStyle = 'rgba(138, 40, 32, 0.62)';
-  ctx.lineWidth = 22;
+  // 圓潤倒角邊緣深朱紅收邊
+  ctx.strokeStyle = 'rgba(112, 16, 10, 0.55)';
+  ctx.lineWidth = 18;
   ctx.strokeRect(0, 0, 512, 512);
 
   const tex = new THREE.CanvasTexture(canvas);
@@ -220,35 +220,44 @@ function createAltarInlayTexture() {
 }
 
 /**
- * 程式化建構真實新月形 3D 筊杯 Mesh Group
+ * 程式化建構台灣傳統木製月牙形 3D 筊杯 Mesh Group
  * 局部座標：
- *   +Y 凸面（硃砂紅漆 / 陰面 / 0），最高點約 y = +0.28
- *   -Y 平面（溫潤原木 / 陽面 / 1），平面約 y = -0.152
- *   +Z 彎月外弧腹，-Z 彎月雙尖角，X ∈ [-1.08, +1.08] 左右完全對稱
+ *   +Y 凸面（深潤亮面朱紅漆背脊 / 陰面 / 0），具圓潤背稜高光
+ *   -Y 平面（霧面淺朱紅木紋平面 / 陽面 / 1），具圓潤邊緣倒角
+ *   +Z 飽滿外半月弧，-Z 自然微凹內弦與兩端收尖圓角，X ∈ [-1.06, +1.06] 左右對稱
  */
 function createMoonBlockMesh(lacquerMat, flatWoodMat) {
   const group = new THREE.Group();
 
-  const uSegs = 44;
-  const vSegs = 24;
-  const lengthHalf = 1.08;
-  const maxWidthHalf = 0.44;
-  const maxHeight = 0.42;
-  const crescentBend = 0.34;
+  const uSegs = 48;
+  const vSegs = 26;
+  const lengthHalf = 1.06;
+  const maxHeight = 0.43;
 
   const evalPoint = (u, v, isTop) => {
     const uClamped = Math.max(-0.999, Math.min(0.999, u));
-    const taper = Math.pow(Math.max(0, 1 - uClamped * uClamped), 0.56);
+    const oneMinusU2 = Math.max(0, 1 - uClamped * uClamped);
+    // 兩端呈現自然收尖但圓潤不刺手的木製月牙尖角
     const x = u * lengthHalf;
-    const zArc = crescentBend * (1 - uClamped * uClamped) - crescentBend * 0.45;
-    const z = zArc + v * maxWidthHalf * taper;
 
+    // 內弦微凹、外腹飽滿的自然半月形輪廓（對標傳統木筊比例，絕非拱門或馬蹄形）
+    const zTip = -0.24;
+    const zInner = zTip + 0.13 * Math.pow(oneMinusU2, 0.85);
+    const zOuter = zTip + 0.78 * Math.pow(oneMinusU2, 0.58);
+    const v01 = (v + 1) * 0.5;
+    const z = zInner + v01 * (zOuter - zInner);
+
+    const taper = Math.pow(oneMinusU2, 0.55);
     let y = 0;
     if (isTop) {
       const domeProfile = Math.cos(v * Math.PI * 0.5);
-      y = maxHeight * taper * Math.pow(Math.max(0, domeProfile), 0.78);
+      // 傳統木筊特有的圓潤背脊微稜曲線與飽滿邊緣倒角
+      const ridgeCrest = 1.0 + 0.09 * Math.exp(-v * v * 6.5);
+      y = maxHeight * taper * Math.pow(Math.max(0, domeProfile), 0.72) * ridgeCrest;
     } else {
-      y = -0.012 * taper * Math.cos(v * Math.PI * 0.5);
+      // 平面微帶圓潤收邊倒角
+      const edgeRound = Math.pow(Math.max(0, Math.cos(v * Math.PI * 0.5)), 0.25);
+      y = -0.010 * taper * edgeRound;
     }
     return [x, y, z];
   };
