@@ -15,7 +15,7 @@
 import * as THREE from 'three';
 import { MoonBlocksScene } from './moon-blocks-3d.js';
 import { CardSummonScene } from './card-summon-3d.js';
-import { CelestialMechanismScene, formatOracleIndex } from './celestial-mechanism-3d.js';
+import { CelestialGateScene, formatOracleIndex } from './celestial-gate-3d.js';
 import { ritualSound } from './sound-synth.js';
 
 const FOG_VERTEX_SHADER = `
@@ -207,7 +207,7 @@ class DivinationStageManager {
         sanctuary: new THREE.Color('#d8bc8c'),
         blocks: new THREE.Color('#cfa86e'),
         cards: new THREE.Color('#b8b0dc'),
-        guide: new THREE.Color('#9ab8c8')
+        guide: new THREE.Color('#5caee0')
       };
       this.currentAccent = this.modeColors.sanctuary.clone();
       this.targetIntentColor = new THREE.Color('#e2caa0');
@@ -411,22 +411,22 @@ class DivinationStageManager {
   _initSubScenes() {
     this.moonBlocks = new MoonBlocksScene();
     this.cardSummon = new CardSummonScene();
-    this.celestialMechanism = new CelestialMechanismScene();
+    this.celestialGate = new CelestialGateScene({ isLowEnd: this.isLowEnd });
 
     this.moonBlocks.setReducedMotion(this.reducedMotion);
     this.cardSummon.setReducedMotion(this.reducedMotion);
-    this.celestialMechanism.setReducedMotion(this.reducedMotion);
+    this.celestialGate.setReducedMotion(this.reducedMotion);
 
     this.moonBlocks.setImpactHandler((intensity) => this.triggerCameraShake(intensity));
     this.cardSummon.setImpactHandler((intensity) => this.triggerCameraShake(intensity));
-    this.celestialMechanism.setImpactHandler((intensity) => this.triggerCameraShake(intensity));
+    this.celestialGate.setImpactHandler((intensity) => this.triggerCameraShake(intensity));
 
     this.scene.add(this.moonBlocks.group);
     this.scene.add(this.cardSummon.group);
-    this.scene.add(this.celestialMechanism.group);
+    this.scene.add(this.celestialGate.group);
 
     this.setMode('sanctuary');
-    this.setSceneTone('luminous');
+    this.setSceneTone('ethereal');
   }
 
   _bindEvents() {
@@ -494,12 +494,12 @@ class DivinationStageManager {
 
     if (mode !== 'blocks') this.moonBlocks.reset();
     if (mode !== 'cards') this.cardSummon.reset();
-    if (mode !== 'guide') this.celestialMechanism.reset();
+    if (mode !== 'guide') this.celestialGate.reset();
 
     this.sanctuaryGroup.visible = mode === 'sanctuary';
     this.moonBlocks.group.visible = mode === 'blocks';
     this.cardSummon.group.visible = mode === 'cards';
-    this.celestialMechanism.group.visible = mode === 'guide';
+    this.celestialGate.group.visible = mode === 'guide';
     this.pulseEnergy(0.32);
   }
 
@@ -538,13 +538,13 @@ class DivinationStageManager {
   invokeCosmicOracle(oracleNumber, onRevealed, onPhaseChange) {
     if (!this.webglReady) return false;
     this.pulseEnergy(0.75);
-    this.celestialMechanism.invokeOracle(oracleNumber, onRevealed, onPhaseChange);
+    this.celestialGate.invokeOracle(oracleNumber, onRevealed, onPhaseChange);
     return true;
   }
 
   resetCosmicOracle() {
     if (!this.webglReady) return;
-    this.celestialMechanism.reset();
+    this.celestialGate.reset();
   }
 
   pulseEnergy(amount = 0.5) {
@@ -557,7 +557,7 @@ class DivinationStageManager {
     if (this.webglReady) {
       this.moonBlocks.setReducedMotion(this.reducedMotion);
       this.cardSummon.setReducedMotion(this.reducedMotion);
-      this.celestialMechanism.setReducedMotion(this.reducedMotion);
+      this.celestialGate.setReducedMotion(this.reducedMotion);
     }
   }
 
@@ -656,11 +656,11 @@ class DivinationStageManager {
       this.camTargetLook.set(...cam.lookAt);
       this.dynamicFocus.lerp(this.cardSummon.getFocusPosition(), Math.min(1, dt * 4));
     } else if (this.mode === 'guide') {
-      this.celestialMechanism.update(dt);
-      const cam = this.celestialMechanism.getCameraTarget();
+      this.celestialGate.update(dt);
+      const cam = this.celestialGate.getCameraTarget();
       this.camTargetPos.set(...cam.pos);
       this.camTargetLook.set(...cam.lookAt);
-      this.dynamicFocus.lerp(this.celestialMechanism.getFocusPosition(), Math.min(1, dt * 4));
+      this.dynamicFocus.lerp(this.celestialGate.getFocusPosition(), Math.min(1, dt * 4));
     }
 
     this.keyLight.target.position.copy(this.dynamicFocus);
@@ -689,8 +689,10 @@ class DivinationStageManager {
       desiredPos.y += Math.cos(this.totalTime * 0.31) * 0.038;
     }
 
-    this.camera.position.lerp(desiredPos, Math.min(1, dt * 3.0));
-    this.currentLook.lerp(this.camTargetLook, Math.min(1, dt * 3.6));
+    const camLerpRate = this.mode === 'guide' ? 1.35 : 3.0;
+    const lookLerpRate = this.mode === 'guide' ? 1.65 : 3.6;
+    this.camera.position.lerp(desiredPos, Math.min(1, dt * camLerpRate));
+    this.currentLook.lerp(this.camTargetLook, Math.min(1, dt * lookLerpRate));
 
     if (this.shakeIntensity > 0.001) {
       this.camera.position.x += (Math.random() - 0.5) * 2 * this.shakeIntensity;

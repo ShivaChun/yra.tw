@@ -306,6 +306,125 @@ class RitualSoundSynth {
     gain.connect(ctx.destination);
     src.start(now);
   }
+
+  /**
+   * 宇宙煙霧甦醒與時空入口渦旋氣流聲（低頻星雲共鳴 + 柔和帶通氣流）
+   */
+  playPortalVortex() {
+    const ctx = this._ensureContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const dur = 1.65;
+    const bufferSize = Math.floor(ctx.sampleRate * dur);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      const t = i / bufferSize;
+      const env = Math.sin(t * Math.PI);
+      data[i] = (Math.random() * 2 - 1) * env * 0.35;
+    }
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(190, now);
+    filter.frequency.exponentialRampToValueAtTime(520, now + dur * 0.55);
+    filter.frequency.exponentialRampToValueAtTime(240, now + dur);
+    filter.Q.setValueAtTime(2.4, now);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.09, now);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    noise.start(now);
+
+    // 搭配空靈深空五度低音泛音
+    [130.81, 196.0].forEach((f, idx) => {
+      const osc = ctx.createOscillator();
+      const oGain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f * 0.96, now);
+      osc.frequency.linearRampToValueAtTime(f, now + 1.2);
+      oGain.gain.setValueAtTime(0.0005, now);
+      oGain.gain.linearRampToValueAtTime(idx === 0 ? 0.055 : 0.03, now + 0.5);
+      oGain.gain.exponentialRampToValueAtTime(0.0004, now + 1.6);
+      osc.connect(oGain);
+      oGain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 1.65);
+    });
+  }
+
+  /**
+   * 空間封印裂縫破開音效（紫藍能量裂解瞬態 + 空間擴散尾韻）
+   */
+  playSealBreakRift() {
+    const ctx = this._ensureContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+
+    // 低頻能量釋放衝擊
+    const subOsc = ctx.createOscillator();
+    const subGain = ctx.createGain();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(165, now);
+    subOsc.frequency.exponentialRampToValueAtTime(46, now + 0.55);
+    subGain.gain.setValueAtTime(0.001, now);
+    subGain.gain.linearRampToValueAtTime(0.16, now + 0.02);
+    subGain.gain.exponentialRampToValueAtTime(0.0006, now + 0.65);
+    subOsc.connect(subGain);
+    subGain.connect(ctx.destination);
+    subOsc.start(now);
+    subOsc.stop(now + 0.7);
+
+    // 晶透裂縫高頻泛音展開
+    [587.33, 880.0, 1174.66].forEach((f, i) => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = i === 0 ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(f * 0.92, now + i * 0.03);
+      osc.frequency.exponentialRampToValueAtTime(f * 1.04, now + i * 0.03 + 0.45);
+      g.gain.setValueAtTime(0.0005, now + i * 0.03);
+      g.gain.linearRampToValueAtTime(0.045 / (i + 1), now + i * 0.03 + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0004, now + i * 0.03 + 0.95);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start(now + i * 0.03);
+      osc.stop(now + i * 0.03 + 1.0);
+    });
+  }
+
+  /**
+   * 中央垂直天體光柱貫穿共鳴（神聖清澈和弦）
+   */
+  playCelestialBeam() {
+    const ctx = this._ensureContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    [261.63, 392.0, 523.25, 783.99, 1046.5].forEach((f, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, now + idx * 0.045);
+
+      const peak = idx === 0 ? 0.065 : 0.042 / Math.sqrt(idx + 1);
+      gain.gain.setValueAtTime(0.0004, now + idx * 0.045);
+      gain.gain.linearRampToValueAtTime(peak, now + idx * 0.045 + 0.14);
+      gain.gain.exponentialRampToValueAtTime(0.0004, now + idx * 0.045 + 2.4);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + idx * 0.045);
+      osc.stop(now + idx * 0.045 + 2.5);
+    });
+  }
 }
 
 export const ritualSound = new RitualSoundSynth();

@@ -894,3 +894,201 @@ body.reduced-motion .animate-zen-float,
 body.reduced-motion .card-awakening-aura::before {
   animation: none !important;
 }
+
+/* ==========================================================================
+   CELESTIAL GATE — 星穹光門啟示卡 (與宇宙煙霧、星軌及垂直光柱視覺一致)
+   ========================================================================== */
+.celestial-revelation-card {
+  position: relative;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 2.35rem 2.2rem 2.25rem;
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(132, 212, 255, 0.20) 0%, transparent 62%),
+    radial-gradient(ellipse at 50% 100%, rgba(244, 218, 168, 0.14) 0%, transparent 58%),
+    linear-gradient(168deg, rgba(8, 17, 38, 0.76) 0%, rgba(5, 11, 26, 0.86) 52%, rgba(11, 20, 44, 0.78) 100%);
+  border: 1px solid rgba(150, 216, 255, 0.36);
+  box-shadow:
+    0 28px 68px rgba(0, 4, 14, 0.72),
+    0 0 44px rgba(96, 192, 255, 0.16),
+    inset 0 1px 0 rgba(224, 244, 255, 0.28),
+    inset 0 -1px 0 rgba(244, 220, 172, 0.18);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden;
+  will-change: transform, opacity, filter;
+}
+
+/* 內層星軌極細金藍雙色線框 */
+.celestial-revelation-card::before {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  border-radius: 15px;
+  border: 1px solid rgba(244, 220, 172, 0.18);
+  pointer-events: none;
+}
+
+/* 上下邊緣呼應中央垂直光柱的貫穿星芒高光 */
+.celestial-revelation-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 58%;
+  height: 1.5px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(148, 222, 255, 0.85) 35%,
+    rgba(255, 248, 228, 0.98) 50%,
+    rgba(244, 218, 168, 0.85) 65%,
+    transparent 100%
+  );
+  box-shadow: 0 0 16px rgba(158, 226, 255, 0.65);
+  pointer-events: none;
+}
+
+.celestial-oracle-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.28rem 1.05rem;
+  border-radius: 999px;
+  border: 1px solid rgba(158, 222, 255, 0.42);
+  background: linear-gradient(
+    90deg,
+    rgba(32, 72, 128, 0.36) 0%,
+    rgba(18, 34, 68, 0.52) 50%,
+    rgba(92, 72, 42, 0.34) 100%
+  );
+  color: #f6e4bc;
+  font-size: 0.74rem;
+  letter-spacing: 0.28em;
+  box-shadow: 0 0 18px rgba(110, 198, 255, 0.20);
+}
+
+.celestial-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: min(220px, 72%);
+  margin: 1.05rem auto;
+}
+
+.celestial-divider-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(148, 218, 255, 0.55) 55%,
+    rgba(246, 226, 182, 0.75) 100%
+  );
+}
+
+.celestial-divider-line.right {
+  background: linear-gradient(
+    90deg,
+    rgba(246, 226, 182, 0.75) 0%,
+    rgba(148, 218, 255, 0.55) 45%,
+    transparent 100%
+  );
+}
+
+.celestial-btn {
+  border-color: rgba(154, 218, 255, 0.52) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(16, 34, 68, 0.78) 0%,
+    rgba(10, 20, 44, 0.88) 55%,
+    rgba(42, 34, 58, 0.76) 100%
+  ) !important;
+  color: #f4f7ff !important;
+  box-shadow:
+    0 12px 34px rgba(0, 4, 16, 0.55),
+    0 0 24px rgba(108, 198, 255, 0.20) !important;
+}
+
+.celestial-btn:hover:not(:disabled) {
+  border-color: rgba(244, 224, 182, 0.88) !important;
+  box-shadow:
+    0 14px 38px rgba(0, 6, 20, 0.65),
+    0 0 30px rgba(138, 214, 255, 0.34) !important;
+}
+
+/* --- 畫面正中央：宇宙指引步驟祝詞懸浮舞台 --- */
+.celestial-invocation-stage {
+  position: relative;
+  max-width: 540px;
+  width: 100%;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  border-radius: 999px;
+  /* 無生硬邊框的柔和深空暗暈襯底，確保在裂縫與光柱前文字依然清晰通透 */
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(4, 10, 24, 0.74) 0%,
+    rgba(5, 12, 28, 0.46) 48%,
+    rgba(5, 12, 28, 0.0) 78%
+  );
+  pointer-events: none;
+}
+
+@keyframes invocationReveal {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.97);
+    filter: blur(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.celestial-invocation-anim {
+  animation: invocationReveal 0.75s var(--ease-zen) forwards;
+  will-change: transform, opacity, filter;
+}
+
+.celestial-step-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.2rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(10, 22, 48, 0.58);
+  border: 1px solid rgba(154, 220, 255, 0.34);
+  color: #f5dfb0;
+  font-size: 0.68rem;
+  letter-spacing: 0.26em;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 0 16px rgba(100, 195, 255, 0.18);
+}
+
+.celestial-invocation-main {
+  color: #f6faff;
+  text-wrap: balance;
+  text-shadow:
+    0 2px 14px rgba(2, 6, 18, 0.95),
+    0 0 24px rgba(126, 208, 255, 0.36);
+}
+
+.celestial-invocation-sub {
+  color: rgba(214, 232, 252, 0.88);
+  text-wrap: balance;
+  text-shadow: 0 2px 10px rgba(2, 6, 18, 0.92);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celestial-invocation-anim {
+    animation: none !important;
+  }
+}
